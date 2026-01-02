@@ -99,17 +99,19 @@ export function registerTaskCrudTools(server: McpServer): void {
   const taskPropertiesSchema = {
     title: z.string().min(1, "Title cannot be empty."),
     notes: z.string().optional(),
-    eventCategory: z.enum(["WORK", "PERSONAL"]).optional(),
-    eventSubType: z.string().optional(), // e.g., "MEETING", "FOCUS" - API specific
-    priority: z.enum(["P1", "P2", "P3", "P4"]).optional(),
-    timeChunksRequired: z
-      .number()
-      .int()
-      .positive("Time chunks must be a positive integer.")
+    eventCategory: z
+      .enum(["WORK", "PERSONAL"])
+      .optional()
+      .describe("Task category: WORK or PERSONAL."),
+    eventSubType: z
+      .string()
       .optional()
       .describe(
-        "Total task duration in 15-minute chunks (e.g., 60 minutes = 4 chunks).",
+        "Task subtype (Reclaim EventSubType). Examples: FOCUS, PRODUCTIVITY, OTHER_PERSONAL, ERRAND, HEALTH.",
       ),
+    priority: z
+      .enum(["P1", "P2", "P3", "P4", "PRIORITIZE", "DEFAULT"])
+      .optional(),
     durationMinutes: z
       .number()
       .int()
@@ -118,14 +120,6 @@ export function registerTaskCrudTools(server: McpServer): void {
       .describe(
         "Total task duration in minutes. Will be converted to 15-minute chunks.",
       ),
-    minChunkSize: z
-      .number()
-      .int()
-      .positive("Min chunk size must be a positive integer.")
-      .optional()
-      .describe(
-        "Minimum chunk size in 15-minute increments. Set equal to timeChunksRequired to prevent splitting.",
-      ),
     minDurationMinutes: z
       .number()
       .int()
@@ -133,14 +127,6 @@ export function registerTaskCrudTools(server: McpServer): void {
       .optional()
       .describe(
         "Minimum chunk duration in minutes. Will be converted to 15-minute chunks.",
-      ),
-    maxChunkSize: z
-      .number()
-      .int()
-      .positive("Max chunk size must be a positive integer.")
-      .optional()
-      .describe(
-        "Maximum chunk size in 15-minute increments. Set equal to timeChunksRequired to prevent splitting.",
       ),
     maxDurationMinutes: z
       .number()
@@ -156,7 +142,39 @@ export function registerTaskCrudTools(server: McpServer): void {
       .describe(
         "If true, sets minChunkSize and maxChunkSize equal to the requested duration (no splitting).",
       ),
+    timeChunksRequired: z
+      .number()
+      .int()
+      .positive("Time chunks must be a positive integer.")
+      .optional()
+      .describe(
+        "(Advanced) Total task duration in 15-minute chunks (NOT minutes). Prefer durationMinutes.",
+      ),
+    minChunkSize: z
+      .number()
+      .int()
+      .positive("Min chunk size must be a positive integer.")
+      .optional()
+      .describe(
+        "(Advanced) Minimum chunk size in 15-minute chunks (NOT minutes). Prefer minDurationMinutes.",
+      ),
+    maxChunkSize: z
+      .number()
+      .int()
+      .positive("Max chunk size must be a positive integer.")
+      .optional()
+      .describe(
+        "(Advanced) Maximum chunk size in 15-minute chunks (NOT minutes). Prefer maxDurationMinutes.",
+      ),
     onDeck: z.boolean().optional(), // Prioritize task
+    alwaysPrivate: z
+      .boolean()
+      .optional()
+      .describe("If true, always mark task events as private on the calendar."),
+    timeSchemeId: z
+      .string()
+      .optional()
+      .describe("Time scheme ID for scheduling rules. Defaults to account task settings."),
     status: z
       .enum([
         "NEW",
@@ -175,6 +193,13 @@ export function registerTaskCrudTools(server: McpServer): void {
         DATE_ONLY_SCHEMA,
       ])
       .optional(),
+    // Due: explicit date/time for the task
+    due: z
+      .union([DATE_TIME_SCHEMA, DATE_ONLY_SCHEMA])
+      .optional()
+      .describe(
+        "Explicit due date/time (ISO 8601 or YYYY-MM-DD). Prefer deadline for days-from-now inputs.",
+      ),
     // StartTime: ISO datetime string (supports timezone offsets)
     startTime: z
       .string()
@@ -204,6 +229,7 @@ export function registerTaskCrudTools(server: McpServer): void {
     eventColor: z
       .enum([
         // Based on Reclaim's standard colors
+        "NONE",
         "LAVENDER",
         "SAGE",
         "GRAPE",
@@ -235,7 +261,12 @@ export function registerTaskCrudTools(server: McpServer): void {
     async (params) => {
       const { startTime, timeZone, timezone, ...taskData } =
         params as TaskToolInput;
-      const normalized = normalizeChunkInputs(taskData);
+      let normalized: TaskInputData;
+      try {
+        normalized = normalizeChunkInputs(taskData);
+      } catch (error) {
+        return wrapApiCall(Promise.reject(error));
+      }
       const resolvedTimeZone = timeZone ?? timezone;
       // The 'params' object directly matches the schema structure
       // Cast to TaskInputData for the API client (which handles 'deadline'/'due' conversion)
@@ -274,8 +305,11 @@ export function registerTaskCrudTools(server: McpServer): void {
         timeZone: taskPropertiesSchema.timeZone,
         timezone: taskPropertiesSchema.timezone,
         onDeck: taskPropertiesSchema.onDeck,
+        alwaysPrivate: taskPropertiesSchema.alwaysPrivate,
+        timeSchemeId: taskPropertiesSchema.timeSchemeId,
         status: taskPropertiesSchema.status,
         deadline: taskPropertiesSchema.deadline,
+        due: taskPropertiesSchema.due,
         snoozeUntil: taskPropertiesSchema.snoozeUntil,
         eventColor: taskPropertiesSchema.eventColor,
       },

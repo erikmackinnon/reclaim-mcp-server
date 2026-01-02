@@ -103,4 +103,17 @@ export function registerTaskResources(server: McpServer): void {
       return wrapResourceCall(uri.href, activeTasksPromise);
     },
   );
+
+  server.registerResource(
+    "reclaim_task_defaults",
+    "tasks://defaults",
+    {
+      title: "Reclaim Task Defaults",
+      description:
+        "Account-level task defaults from Reclaim (chunk size defaults, priority defaults, etc.). Useful for building valid task payloads.",
+      mimeType: "application/json",
+    },
+    async (uri: URL) =>
+      wrapResourceCall(uri.href, api.getTaskDefaults()),
+  );
 }

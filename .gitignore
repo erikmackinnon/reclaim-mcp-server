@@ -133,3 +133,6 @@ dist/
 
 # Local files
 *.local
+
+# Codex / Code CLI artifacts
+.code/

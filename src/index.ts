@@ -15,6 +15,7 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { registerTaskResources } from "./resources/tasks.js";
 import { registerTaskActionTools } from "./tools/taskActions.js";
 import { registerTaskCrudTools } from "./tools/taskCrud.js";
+import { fetchAccountTimeZone } from "./reclaim-client.js";
 import "dotenv/config"; // Load environment variables from .env file
 
 // --- Server Information ---
@@ -139,8 +140,28 @@ function sendUnknownSession(res: express.Response): void {
   sendSessionError(res, 404, "Unknown session");
 }
 
+async function bootstrapDefaultTimeZone(): Promise<void> {
+  if (process.env.MCP_DEFAULT_TIMEZONE) {
+    return;
+  }
+
+  try {
+    const tz = await fetchAccountTimeZone();
+    if (tz) {
+      process.env.MCP_DEFAULT_TIMEZONE = tz;
+      console.error(`Default timezone set from Reclaim account: ${tz}`);
+    }
+  } catch (error) {
+    console.error(
+      "Could not fetch Reclaim account timezone; falling back to the server machine timezone.",
+      error,
+    );
+  }
+}
+
 async function startStdioServer(): Promise<void> {
   const server = createServer();
+  void bootstrapDefaultTimeZone();
   console.error(`Server instance created for "${serverInfo.name}".`);
   console.error("Registering MCP features...");
   console.error("All tools and resources registered successfully.");
@@ -162,6 +183,8 @@ async function startHttpServer(): Promise<void> {
   const allowedOrigins = parseAllowedOrigins(
     process.env.MCP_HTTP_ALLOWED_ORIGINS,
   );
+
+  void bootstrapDefaultTimeZone();
 
   if (!Number.isFinite(port) || port <= 0) {
     console.error(

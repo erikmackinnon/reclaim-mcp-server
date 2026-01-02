@@ -15,7 +15,6 @@ module.exports = {
     "promise",
     "security-node",
     "unused-imports",
-    "jest", // Add Jest plugin
     // 'prettier' plugin is included via extends below
   ],
   extends: [
@@ -92,6 +91,7 @@ module.exports = {
     // Many security rules are enabled by 'plugin:security-node/recommended'
     // Add specific overrides if needed, e.g.:
     // 'security-node/detect-cwe-117': 'off', // Example: If log injection FP occurs
+    "security-node/detect-unhandled-async-errors": "off", // Known to crash on some TS/ESM syntax
 
     // —— Misc ——
     "no-console": ["warn", { allow: ["warn", "error", "info"] }], // Allow specific console methods
@@ -107,8 +107,7 @@ module.exports = {
     {
       // Configuration for test files
       files: ["*.test.ts", "*.spec.ts"],
-      extends: ["plugin:jest/recommended"], // Apply Jest recommended rules
-      env: { node: true, "jest/globals": true }, // Define Jest environment
+      env: { node: true },
       rules: {
         // Relax rules often needed in tests
         "@typescript-eslint/no-explicit-any": "off",

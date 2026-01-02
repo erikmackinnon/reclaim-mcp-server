@@ -11,7 +11,7 @@ export interface Task {
   notes?: string;
   eventCategory?: "WORK" | "PERSONAL";
   eventSubType?: string; // e.g., "FOCUS", "MEETING"
-  priority?: "P1" | "P2" | "P3" | "P4";
+  priority?: "P1" | "P2" | "P3" | "P4" | "PRIORITIZE" | "DEFAULT";
   timeChunksRequired?: number; // In 15-min increments
   timeChunksSpent?: number;
   timeChunksRemaining?: number;
@@ -57,13 +57,15 @@ export interface TaskInputData {
   notes?: string;
   eventCategory?: "WORK" | "PERSONAL";
   eventSubType?: string;
-  priority?: "P1" | "P2" | "P3" | "P4";
+  priority?: "P1" | "P2" | "P3" | "P4" | "PRIORITIZE" | "DEFAULT";
   timeChunksRequired?: number; // 1 chunk = 15 mins
   /** Minimum chunk size (15-min increments). Set equal to `timeChunksRequired` to prevent splitting. */
   minChunkSize?: number;
   /** Maximum chunk size (15-min increments). Set equal to `timeChunksRequired` to prevent splitting. */
   maxChunkSize?: number;
   onDeck?: boolean;
+  alwaysPrivate?: boolean;
+  timeSchemeId?: string;
   /**
    * Task status. See `Task` interface for notes on the `COMPLETE` status meaning.
    */

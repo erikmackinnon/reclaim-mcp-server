@@ -44,6 +44,22 @@ export function registerTaskActionTools(server: McpServer): void {
 
   // --- Tool Definitions ---
 
+  server.registerTool(
+    "reclaim_get_task_defaults",
+    {
+      title: "Get Reclaim Task Defaults",
+      description:
+        "Fetch account-level Reclaim task defaults (chunk sizes, priority defaults, etc.).",
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        destructiveHint: false,
+      },
+    },
+    async () => wrapApiCall(api.getTaskDefaults()),
+  );
+
   // List tasks tool (Ported from return_tasks flag in prior JS implementation)
   server.registerTool(
     "reclaim_list_tasks",

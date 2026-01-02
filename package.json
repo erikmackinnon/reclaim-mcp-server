@@ -171,6 +171,16 @@
           "placeholder": "America/Los_Angeles",
           "label": "MCP Default Time Zone"
         }
+      },
+      "RECLAIM_DEBUG": {
+        "description": "Set to true to log Reclaim request payloads and responses for debugging.",
+        "type": "string",
+        "required": false,
+        "input": {
+          "type": "text",
+          "placeholder": "false",
+          "label": "Reclaim Debug Logging"
+        }
       }
     }
   }

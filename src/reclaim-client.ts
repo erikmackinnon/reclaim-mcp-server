@@ -83,6 +83,106 @@ const LOCAL_DATETIME_REGEX =
   /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2})(?::(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?)?$/;
 const HAS_TIMEZONE_REGEX = /([zZ]|[+-]\d{2}:\d{2})$/;
 
+type CurrentUserResponse = {
+  timezone?: string;
+  settings?: {
+    taskSettings?: {
+      defaults?: TaskDefaults;
+    };
+  };
+  [key: string]: unknown;
+};
+
+type TaskDefaults = {
+  timeChunksRequired?: number;
+  commsTimeChunksRequired?: number;
+  delayedStartInMinutes?: number;
+  dueInDays?: number | null;
+  category?: string;
+  alwaysPrivate?: boolean;
+  minChunkSize?: number;
+  maxChunkSize?: number;
+  timeSchemeId?: string | null;
+  priority?: string;
+  onDeck?: boolean;
+  splitUp?: boolean;
+  googleTaskIntegrationNoDueDateWhenMissing?: boolean;
+};
+
+let cachedCurrentUser: CurrentUserResponse | undefined;
+let cachedCurrentUserPromise: Promise<CurrentUserResponse | undefined> | undefined;
+let cachedAccountTimeZone: string | undefined;
+let cachedTaskDefaults: TaskDefaults | undefined;
+
+async function fetchCurrentUser(): Promise<CurrentUserResponse | undefined> {
+  if (cachedCurrentUser) {
+    return cachedCurrentUser;
+  }
+
+  if (!cachedCurrentUserPromise) {
+    cachedCurrentUserPromise = (async () => {
+      assertToken();
+      const { data } = await reclaim.get<CurrentUserResponse>("/users/current");
+      if (data && typeof data === "object") {
+        cachedCurrentUser = data;
+      }
+      return cachedCurrentUser;
+    })();
+  }
+
+  try {
+    return await cachedCurrentUserPromise;
+  } finally {
+    if (!cachedCurrentUser) {
+      cachedCurrentUserPromise = undefined;
+    }
+  }
+}
+
+export async function fetchAccountTimeZone(): Promise<string | undefined> {
+  if (cachedAccountTimeZone) {
+    return cachedAccountTimeZone;
+  }
+
+  const user = await fetchCurrentUser();
+  const tz = typeof user?.timezone === "string" ? user.timezone.trim() : undefined;
+  if (tz) {
+    cachedAccountTimeZone = tz;
+  }
+
+  return cachedAccountTimeZone;
+}
+
+export async function fetchTaskDefaults(): Promise<TaskDefaults | undefined> {
+  if (cachedTaskDefaults) {
+    return cachedTaskDefaults;
+  }
+
+  const user = await fetchCurrentUser();
+  const defaults = user?.settings?.taskSettings?.defaults;
+  if (defaults && typeof defaults === "object") {
+    cachedTaskDefaults = defaults;
+  }
+
+  return cachedTaskDefaults;
+}
+
+export async function getTaskDefaults(): Promise<Record<string, unknown>> {
+  const defaults = await fetchTaskDefaults();
+  const category = normalizeEventCategory(undefined, defaults?.category);
+  const derived = {
+    eventCategory: category,
+    eventSubType: normalizeEventSubType(undefined, category),
+    priority: normalizePriority(undefined, defaults?.priority),
+  };
+
+  return {
+    chunkMinutes: 15,
+    defaults: defaults ?? {},
+    derivedDefaults: derived,
+  };
+}
+
 function resolveTimeZone(timeZone?: string): string | undefined {
   if (timeZone && timeZone.trim().length > 0) {
     return timeZone.trim();
@@ -90,6 +190,10 @@ function resolveTimeZone(timeZone?: string): string | undefined {
 
   if (process.env.MCP_DEFAULT_TIMEZONE) {
     return process.env.MCP_DEFAULT_TIMEZONE;
+  }
+
+  if (cachedAccountTimeZone) {
+    return cachedAccountTimeZone;
   }
 
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -105,6 +209,132 @@ function assertValidTimeZone(timeZone: string): void {
   }
 }
 
+const EVENT_CATEGORIES = new Set(["WORK", "PERSONAL"]);
+const PRIORITY_LEVELS = new Set([
+  "P1",
+  "P2",
+  "P3",
+  "P4",
+  "PRIORITIZE",
+  "DEFAULT",
+]);
+const EVENT_SUBTYPES = new Set([
+  "ONE_ON_ONE",
+  "STAFF_MEETING",
+  "OP_REVIEW",
+  "EXTERNAL",
+  "IDEATION",
+  "FOCUS",
+  "PRODUCTIVITY",
+  "TRAVEL",
+  "FLIGHT",
+  "TRAIN",
+  "RECLAIM",
+  "VACATION",
+  "HEALTH",
+  "ERRAND",
+  "OTHER_PERSONAL",
+  "UNKNOWN",
+]);
+const EVENT_SUBTYPE_ALIASES: Record<string, string> = {
+  MEETING: "STAFF_MEETING",
+  "1ON1": "ONE_ON_ONE",
+  ONEONONE: "ONE_ON_ONE",
+  "ONE-ON-ONE": "ONE_ON_ONE",
+  "ONE_ON_ONE": "ONE_ON_ONE",
+  PERSONAL: "OTHER_PERSONAL",
+  ERRANDS: "ERRAND",
+  FOCUS_TIME: "FOCUS",
+};
+const PERSONAL_SUBTYPES = new Set(["OTHER_PERSONAL", "ERRAND", "HEALTH", "VACATION"]);
+
+const DEBUG_ENABLED = process.env.RECLAIM_DEBUG === "true";
+
+function debugLog(context: string, detail: unknown): void {
+  if (!DEBUG_ENABLED) {
+    return;
+  }
+  try {
+    console.error(`[reclaim-debug] ${context}`, JSON.stringify(detail, null, 2));
+  } catch (error) {
+    console.error(`[reclaim-debug] ${context}`, detail, error);
+  }
+}
+
+function normalizeEnumValue(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  return value.trim().toUpperCase().replace(/[\s-]+/g, "_");
+}
+
+function normalizeEventCategory(
+  value?: string,
+  fallback?: string,
+): "WORK" | "PERSONAL" {
+  const normalized = normalizeEnumValue(value ?? fallback);
+  if (normalized && EVENT_CATEGORIES.has(normalized)) {
+    return normalized as "WORK" | "PERSONAL";
+  }
+  return "WORK";
+}
+
+function inferCategoryFromSubType(
+  subType?: string,
+): "WORK" | "PERSONAL" | undefined {
+  const normalized = normalizeEnumValue(subType);
+  if (normalized && PERSONAL_SUBTYPES.has(normalized)) {
+    return "PERSONAL";
+  }
+  return undefined;
+}
+
+function normalizePriority(value?: string, fallback?: string):
+  | "P1"
+  | "P2"
+  | "P3"
+  | "P4" {
+  const normalized = normalizeEnumValue(value ?? fallback);
+  if (normalized) {
+    if (normalized === "P1" || normalized === "P2" || normalized === "P3" || normalized === "P4") {
+      return normalized;
+    }
+    if (normalized === "DEFAULT") {
+      const fallbackNormalized = normalizeEnumValue(fallback);
+      if (
+        fallbackNormalized === "P1" ||
+        fallbackNormalized === "P2" ||
+        fallbackNormalized === "P3" ||
+        fallbackNormalized === "P4"
+      ) {
+        return fallbackNormalized;
+      }
+    }
+    if (normalized === "PRIORITIZE") {
+      return "P1";
+    }
+  }
+  return "P3";
+}
+
+function normalizeEventSubType(
+  value: string | undefined,
+  eventCategory: "WORK" | "PERSONAL",
+): string {
+  const normalized = normalizeEnumValue(value);
+  if (normalized) {
+    if (EVENT_SUBTYPES.has(normalized)) {
+      return normalized;
+    }
+    const alias = EVENT_SUBTYPE_ALIASES[normalized];
+    if (alias && EVENT_SUBTYPES.has(alias)) {
+      return alias;
+    }
+  }
+
+  return eventCategory === "PERSONAL" ? "OTHER_PERSONAL" : "FOCUS";
+}
+
 type TimeParts = {
   year: number;
   month: number;
@@ -113,6 +343,65 @@ type TimeParts = {
   minute: number;
   second: number;
 };
+
+function assertValidLocalDateTime(
+  parts: TimeParts & { millisecond: number },
+  originalInput: string,
+): void {
+  const { year, month, day, hour, minute, second, millisecond } = parts;
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    !Number.isInteger(second) ||
+    !Number.isInteger(millisecond)
+  ) {
+    throw new Error(`Invalid date/time: "${originalInput}"`);
+  }
+
+  if (month < 1 || month > 12) {
+    throw new Error(`Invalid month in date/time: "${originalInput}"`);
+  }
+
+  if (day < 1 || day > 31) {
+    throw new Error(`Invalid day in date/time: "${originalInput}"`);
+  }
+
+  if (hour < 0 || hour > 23) {
+    throw new Error(`Invalid hour in date/time: "${originalInput}"`);
+  }
+
+  if (minute < 0 || minute > 59) {
+    throw new Error(`Invalid minute in date/time: "${originalInput}"`);
+  }
+
+  if (second < 0 || second > 59) {
+    throw new Error(`Invalid second in date/time: "${originalInput}"`);
+  }
+
+  if (millisecond < 0 || millisecond > 999) {
+    throw new Error(`Invalid milliseconds in date/time: "${originalInput}"`);
+  }
+
+  const utcCheck = new Date(
+    Date.UTC(year, month - 1, day, hour, minute, second, millisecond),
+  );
+
+  if (
+    utcCheck.getUTCFullYear() !== year ||
+    utcCheck.getUTCMonth() + 1 !== month ||
+    utcCheck.getUTCDate() !== day ||
+    utcCheck.getUTCHours() !== hour ||
+    utcCheck.getUTCMinutes() !== minute ||
+    utcCheck.getUTCSeconds() !== second ||
+    utcCheck.getUTCMilliseconds() !== millisecond
+  ) {
+    throw new Error(`Invalid date/time: "${originalInput}"`);
+  }
+}
 
 function getZonedParts(date: Date, timeZone: string): TimeParts {
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -225,6 +514,27 @@ function zonedTimeToUtc(
   }
 
   const desiredNaive = partsToUtcMillis(desiredParts);
+  const afterCandidates = candidates
+    .map((candidate) => ({
+      ...candidate,
+      naive: partsToUtcMillis(candidate.parts),
+    }))
+    .filter((candidate) => candidate.naive >= desiredNaive)
+    .sort((a, b) => {
+      const aDelta = a.naive - desiredNaive;
+      const bDelta = b.naive - desiredNaive;
+      if (aDelta !== bDelta) {
+        return aDelta - bDelta;
+      }
+      return a.date.getTime() - b.date.getTime();
+    });
+
+  if (afterCandidates.length > 0) {
+    // If the desired local time is invalid (DST spring-forward gap), prefer the next valid time.
+    return afterCandidates[0].date;
+  }
+
+  // Fallback: pick the closest local wall-clock time when we can't find an exact or later match.
   let bestCandidate = candidates[0];
   let bestDiff = Number.POSITIVE_INFINITY;
   for (const candidate of candidates) {
@@ -244,104 +554,292 @@ export function parseDeadline(
   options?: { timeZone?: string },
 ): string {
   const now = new Date();
-  try {
-    if (typeof deadlineInput === "number") {
-      // Interpret number as days from now
-      if (deadlineInput <= 0) {
-        console.warn(
-          `Received non-positive number of days "${deadlineInput}" for deadline/snooze, using current time.`,
-        );
-        return now.toISOString();
+  if (typeof deadlineInput === "number") {
+    // Interpret number as days from now
+    if (deadlineInput <= 0) {
+      console.warn(
+        `Received non-positive number of days "${deadlineInput}" for deadline/snooze, using current time.`,
+      );
+      return now.toISOString();
+    }
+    const deadline = new Date(now);
+    deadline.setDate(deadline.getDate() + deadlineInput);
+    // Keep the current time, just advance the date
+    return deadline.toISOString();
+  }
+
+  if (typeof deadlineInput === "string") {
+    const trimmed = deadlineInput.trim();
+    if (HAS_TIMEZONE_REGEX.test(trimmed)) {
+      const parsed = new Date(trimmed);
+      if (isNaN(parsed.getTime())) {
+        throw new Error(`Invalid date format: "${deadlineInput}"`);
       }
-      const deadline = new Date(now);
-      deadline.setDate(deadline.getDate() + deadlineInput);
-      // Keep the current time, just advance the date
-      return deadline.toISOString();
+      return parsed.toISOString();
     }
 
-    if (typeof deadlineInput === "string") {
-      const trimmed = deadlineInput.trim();
-      if (HAS_TIMEZONE_REGEX.test(trimmed)) {
-        const parsed = new Date(trimmed);
-        if (isNaN(parsed.getTime())) {
-          throw new Error(`Invalid date format: "${deadlineInput}"`);
-        }
-        return parsed.toISOString();
-      }
+    const match = trimmed.match(LOCAL_DATETIME_REGEX);
+    if (match) {
+      const [
+        ,
+        yearRaw,
+        monthRaw,
+        dayRaw,
+        hourRaw,
+        minuteRaw,
+        secondRaw,
+        millisecondRaw,
+      ] = match;
+      const year = Number(yearRaw);
+      const month = Number(monthRaw);
+      const day = Number(dayRaw);
+      const hour = hourRaw ? Number(hourRaw) : 0;
+      const minute = minuteRaw ? Number(minuteRaw) : 0;
+      const second = secondRaw ? Number(secondRaw) : 0;
+      const millisecond = millisecondRaw
+        ? Number(millisecondRaw.padEnd(3, "0"))
+        : 0;
 
-      const match = trimmed.match(LOCAL_DATETIME_REGEX);
-      if (match) {
-        const [
-          ,
-          yearRaw,
-          monthRaw,
-          dayRaw,
-          hourRaw,
-          minuteRaw,
-          secondRaw,
-          millisecondRaw,
-        ] = match;
-        const year = Number(yearRaw);
-        const month = Number(monthRaw);
-        const day = Number(dayRaw);
-        const hour = hourRaw ? Number(hourRaw) : 0;
-        const minute = minuteRaw ? Number(minuteRaw) : 0;
-        const second = secondRaw ? Number(secondRaw) : 0;
-        const millisecond = millisecondRaw
-          ? Number(millisecondRaw.padEnd(3, "0"))
-          : 0;
+      assertValidLocalDateTime(
+        { year, month, day, hour, minute, second, millisecond },
+        deadlineInput,
+      );
 
-        const timeZone = resolveTimeZone(options?.timeZone);
-        if (timeZone) {
-          assertValidTimeZone(timeZone);
-          const utcDate = zonedTimeToUtc(
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            millisecond,
-            timeZone,
-          );
-          return utcDate.toISOString();
-        }
-
-        const localDate = new Date(
+      const timeZone = resolveTimeZone(options?.timeZone);
+      if (timeZone) {
+        assertValidTimeZone(timeZone);
+        const utcDate = zonedTimeToUtc(
           year,
-          month - 1,
+          month,
           day,
           hour,
           minute,
           second,
           millisecond,
+          timeZone,
         );
-        if (isNaN(localDate.getTime())) {
-          throw new Error(`Invalid date format: "${deadlineInput}"`);
-        }
-        return localDate.toISOString();
+        return utcDate.toISOString();
       }
 
-      const parsedFallback = new Date(trimmed);
-      if (isNaN(parsedFallback.getTime())) {
+      const localDate = new Date(
+        year,
+        month - 1,
+        day,
+        hour,
+        minute,
+        second,
+        millisecond,
+      );
+      if (isNaN(localDate.getTime())) {
         throw new Error(`Invalid date format: "${deadlineInput}"`);
       }
-      return parsedFallback.toISOString();
+      return localDate.toISOString();
     }
-    // If deadlineInput is undefined or null, fall through to default
-  } catch (error) {
-    // Log the specific error during parsing before defaulting
-    console.error(
-      `Failed to parse deadline/snooze input "${deadlineInput}", defaulting to 24 hours from now. Error: ${
-        (error as Error).message
-      }`,
-    );
+
+    const parsedFallback = new Date(trimmed);
+    if (isNaN(parsedFallback.getTime())) {
+      throw new Error(`Invalid date format: "${deadlineInput}"`);
+    }
+    return parsedFallback.toISOString();
   }
+  // If deadlineInput is undefined or null, fall through to default
 
   // Default case: 24 hours from now
   const defaultDeadline = new Date(now);
   defaultDeadline.setDate(defaultDeadline.getDate() + 1); // Add 1 day
   return defaultDeadline.toISOString();
+}
+
+function addMinutes(base: Date, minutes: number): Date {
+  return new Date(base.getTime() + minutes * 60000);
+}
+
+function addDays(base: Date, days: number): Date {
+  return addMinutes(base, days * 1440);
+}
+
+function deriveDefaultDue(base: Date, defaults?: TaskDefaults): Date {
+  if (typeof defaults?.dueInDays === "number" && defaults.dueInDays > 0) {
+    return addDays(base, defaults.dueInDays);
+  }
+  return addDays(base, 1);
+}
+
+function applyTaskDefaultsForCreate(
+  taskData: TaskInputData,
+  defaults?: TaskDefaults,
+): TaskInputData {
+  const output: TaskInputData = { ...taskData };
+
+  const inferredCategory =
+    output.eventCategory === undefined
+      ? inferCategoryFromSubType(output.eventSubType)
+      : undefined;
+  const normalizedCategory = normalizeEventCategory(
+    output.eventCategory,
+    inferredCategory ?? defaults?.category,
+  );
+  output.eventCategory = normalizedCategory;
+  output.eventSubType = normalizeEventSubType(
+    output.eventSubType,
+    normalizedCategory,
+  );
+  output.priority = normalizePriority(output.priority, defaults?.priority);
+
+  if (output.onDeck === undefined && typeof defaults?.onDeck === "boolean") {
+    output.onDeck = defaults.onDeck;
+  }
+
+  if (
+    output.alwaysPrivate === undefined &&
+    typeof defaults?.alwaysPrivate === "boolean"
+  ) {
+    output.alwaysPrivate = defaults.alwaysPrivate;
+  }
+
+  if (!output.notes) {
+    output.notes = "";
+  }
+
+  if (
+    output.timeSchemeId === undefined &&
+    typeof defaults?.timeSchemeId === "string" &&
+    defaults.timeSchemeId.trim().length > 0
+  ) {
+    output.timeSchemeId = defaults.timeSchemeId;
+  }
+
+  if (
+    output.timeChunksRequired === undefined &&
+    typeof defaults?.timeChunksRequired === "number" &&
+    defaults.timeChunksRequired > 0
+  ) {
+    output.timeChunksRequired = defaults.timeChunksRequired;
+  }
+
+  if (output.timeChunksRequired === undefined) {
+    const derived = Math.max(
+      output.minChunkSize ?? 0,
+      output.maxChunkSize ?? 0,
+    );
+    if (derived > 0) {
+      output.timeChunksRequired = derived;
+    }
+  }
+
+  if (output.timeChunksRequired === undefined) {
+    output.timeChunksRequired = 1;
+  }
+
+  if (output.minChunkSize === undefined) {
+    if (
+      typeof defaults?.minChunkSize === "number" &&
+      defaults.minChunkSize > 0
+    ) {
+      output.minChunkSize = defaults.minChunkSize;
+    }
+  }
+
+  if (output.maxChunkSize === undefined) {
+    if (
+      typeof defaults?.maxChunkSize === "number" &&
+      defaults.maxChunkSize > 0
+    ) {
+      output.maxChunkSize = defaults.maxChunkSize;
+    }
+  }
+
+  if (output.minChunkSize === undefined) {
+    output.minChunkSize = Math.min(output.timeChunksRequired, 1);
+  }
+
+  if (output.maxChunkSize === undefined) {
+    output.maxChunkSize = output.timeChunksRequired;
+  }
+
+  if (output.timeChunksRequired !== undefined) {
+    if (output.minChunkSize !== undefined) {
+      output.minChunkSize = Math.min(
+        output.minChunkSize,
+        output.timeChunksRequired,
+      );
+    }
+    if (output.maxChunkSize !== undefined) {
+      output.maxChunkSize = Math.min(
+        output.maxChunkSize,
+        output.timeChunksRequired,
+      );
+    }
+  }
+
+  if (
+    output.minChunkSize !== undefined &&
+    output.maxChunkSize !== undefined &&
+    output.minChunkSize > output.maxChunkSize
+  ) {
+    output.maxChunkSize = output.minChunkSize;
+  }
+
+  return output;
+}
+
+function normalizeTaskPatch(
+  taskData: TaskInputData,
+  defaults?: TaskDefaults,
+): TaskInputData {
+  const output: TaskInputData = { ...taskData };
+
+  if (output.eventCategory) {
+    output.eventCategory = normalizeEventCategory(
+      output.eventCategory,
+      defaults?.category,
+    );
+  }
+
+  if (output.eventSubType) {
+    const category = output.eventCategory
+      ? normalizeEventCategory(output.eventCategory)
+      : normalizeEventCategory(
+          undefined,
+          inferCategoryFromSubType(output.eventSubType) ?? defaults?.category,
+        );
+    output.eventSubType = normalizeEventSubType(output.eventSubType, category);
+  }
+
+  if (output.priority) {
+    output.priority = normalizePriority(output.priority, defaults?.priority);
+  }
+
+  if (output.timeSchemeId !== undefined) {
+    if (typeof output.timeSchemeId !== "string" || output.timeSchemeId === "") {
+      delete output.timeSchemeId;
+    }
+  }
+
+  if (output.timeChunksRequired !== undefined) {
+    if (output.minChunkSize !== undefined) {
+      output.minChunkSize = Math.min(
+        output.minChunkSize,
+        output.timeChunksRequired,
+      );
+    }
+    if (output.maxChunkSize !== undefined) {
+      output.maxChunkSize = Math.min(
+        output.maxChunkSize,
+        output.timeChunksRequired,
+      );
+    }
+  }
+
+  if (
+    output.minChunkSize !== undefined &&
+    output.maxChunkSize !== undefined &&
+    output.minChunkSize > output.maxChunkSize
+  ) {
+    output.maxChunkSize = output.minChunkSize;
+  }
+
+  return output;
 }
 
 /**
@@ -484,23 +982,46 @@ export async function createTask(
   const context = "createTask";
   try {
     assertToken();
+    const resolvedTimeZone =
+      timeZone ??
+      process.env.MCP_DEFAULT_TIMEZONE ??
+      (await fetchAccountTimeZone().catch(() => undefined));
+    const defaults = await fetchTaskDefaults().catch(() => undefined);
+    const normalizedInput = applyTaskDefaultsForCreate(taskData, defaults);
     // API expects 'due', not 'deadline'. parseDeadline handles conversion and default.
-    const apiPayload: Partial<TaskInputData> = { ...taskData }; // Clone to avoid modifying input object
+    const apiPayload: Partial<TaskInputData> = { ...normalizedInput }; // Clone to avoid modifying input object
+
+    // Normalize due/deadline fields
+    if (apiPayload.due !== undefined) {
+      apiPayload.due = parseDeadline(apiPayload.due, {
+        timeZone: resolvedTimeZone,
+      });
+    }
 
     // Handle deadline/due conversion
     if ("deadline" in apiPayload && apiPayload.deadline !== undefined) {
-      apiPayload.due = parseDeadline(apiPayload.deadline, { timeZone });
+      apiPayload.due = parseDeadline(apiPayload.deadline, {
+        timeZone: resolvedTimeZone,
+      });
       delete apiPayload.deadline; // Remove original deadline field
     } else if (!apiPayload.due) {
       // Ensure 'due' exists, defaulting if neither 'due' nor 'deadline' provided
-      apiPayload.due = parseDeadline(undefined, { timeZone }); // Defaults to 24h
+      if (typeof defaults?.dueInDays === "number" && defaults.dueInDays > 0) {
+        apiPayload.due = parseDeadline(defaults.dueInDays, {
+          timeZone: resolvedTimeZone,
+        });
+      } else {
+        apiPayload.due = parseDeadline(undefined, {
+          timeZone: resolvedTimeZone,
+        }); // Defaults to 24h
+      }
     }
 
     // Handle snoozeUntil conversion
     if ("snoozeUntil" in apiPayload && apiPayload.snoozeUntil !== undefined) {
       // Use parseDeadline logic for snoozeUntil as well
       apiPayload.snoozeUntil = parseDeadline(apiPayload.snoozeUntil, {
-        timeZone,
+        timeZone: resolvedTimeZone,
       });
     }
 
@@ -513,6 +1034,7 @@ export async function createTask(
       }
     });
 
+    debugLog(`${context} payload`, apiPayload);
     const { data } = await reclaim.post<Task>("/tasks", apiPayload);
     return data;
   } catch (error) {
@@ -540,21 +1062,53 @@ export async function createTaskAtTime(
   try {
     assertToken();
 
-    const startTimeIso = parseDeadline(startTime, { timeZone });
-    const apiPayload: Partial<TaskInputData> = { ...taskData };
+    const resolvedTimeZone =
+      timeZone ??
+      process.env.MCP_DEFAULT_TIMEZONE ??
+      (await fetchAccountTimeZone().catch(() => undefined));
+    const defaults = await fetchTaskDefaults().catch(() => undefined);
+    const normalizedInput = applyTaskDefaultsForCreate(taskData, defaults);
+
+    const startTimeIso = parseDeadline(startTime, {
+      timeZone: resolvedTimeZone,
+    });
+    const apiPayload: Partial<TaskInputData> = { ...normalizedInput };
+
+    // Normalize due/deadline fields; default due to a sensible value if missing.
+    if (apiPayload.due !== undefined) {
+      apiPayload.due = parseDeadline(apiPayload.due, {
+        timeZone: resolvedTimeZone,
+      });
+    }
 
     // Handle deadline/due conversion; default due to the start time to avoid an unrelated fallback.
     if ("deadline" in apiPayload && apiPayload.deadline !== undefined) {
-      apiPayload.due = parseDeadline(apiPayload.deadline, { timeZone });
+      apiPayload.due = parseDeadline(apiPayload.deadline, {
+        timeZone: resolvedTimeZone,
+      });
       delete apiPayload.deadline;
     } else if (!apiPayload.due) {
-      apiPayload.due = startTimeIso;
+      const startTimeDate = new Date(startTimeIso);
+      if (
+        apiPayload.timeChunksRequired !== undefined &&
+        apiPayload.timeChunksRequired > 0 &&
+        !isNaN(startTimeDate.getTime())
+      ) {
+        apiPayload.due = addMinutes(
+          startTimeDate,
+          apiPayload.timeChunksRequired * 15,
+        ).toISOString();
+      } else if (!isNaN(startTimeDate.getTime())) {
+        apiPayload.due = deriveDefaultDue(startTimeDate, defaults).toISOString();
+      } else {
+        apiPayload.due = deriveDefaultDue(new Date(), defaults).toISOString();
+      }
     }
 
     // Handle snoozeUntil conversion
     if ("snoozeUntil" in apiPayload && apiPayload.snoozeUntil !== undefined) {
       apiPayload.snoozeUntil = parseDeadline(apiPayload.snoozeUntil, {
-        timeZone,
+        timeZone: resolvedTimeZone,
       });
     }
 
@@ -567,6 +1121,7 @@ export async function createTaskAtTime(
       }
     });
 
+    debugLog(`${context} payload`, { params: { startTime: startTimeIso }, apiPayload });
     const { data } = await reclaim.post("/tasks/at-time", apiPayload, {
       params: { startTime: startTimeIso },
     });
@@ -592,19 +1147,36 @@ export async function updateTask(
   const context = `updateTask(taskId=${taskId})`;
   try {
     assertToken();
+    const resolvedTimeZone =
+      timeZone ??
+      process.env.MCP_DEFAULT_TIMEZONE ??
+      (await fetchAccountTimeZone().catch(() => undefined));
+    const defaults = await fetchTaskDefaults().catch(() => undefined);
     // API expects 'due', not 'deadline'. parseDeadline handles conversion.
-    const apiPayload: Partial<TaskInputData> = { ...taskData }; // Clone to avoid modifying input object
+    const apiPayload: Partial<TaskInputData> = normalizeTaskPatch(
+      taskData,
+      defaults,
+    );
+
+    // Normalize due/deadline fields
+    if (apiPayload.due !== undefined) {
+      apiPayload.due = parseDeadline(apiPayload.due, {
+        timeZone: resolvedTimeZone,
+      });
+    }
 
     // Handle deadline/due conversion
     if ("deadline" in apiPayload && apiPayload.deadline !== undefined) {
-      apiPayload.due = parseDeadline(apiPayload.deadline, { timeZone });
+      apiPayload.due = parseDeadline(apiPayload.deadline, {
+        timeZone: resolvedTimeZone,
+      });
       delete apiPayload.deadline; // Remove original deadline field
     }
 
     // Handle snoozeUntil conversion
     if ("snoozeUntil" in apiPayload && apiPayload.snoozeUntil !== undefined) {
       apiPayload.snoozeUntil = parseDeadline(apiPayload.snoozeUntil, {
-        timeZone,
+        timeZone: resolvedTimeZone,
       });
     }
 
@@ -626,6 +1198,7 @@ export async function updateTask(
       return getTask(taskId);
     }
 
+    debugLog(`${context} payload`, apiPayload);
     const { data } = await reclaim.patch<Task>(`/tasks/${taskId}`, apiPayload);
     return data;
   } catch (error) {
@@ -774,13 +1347,18 @@ export async function logWorkForTask(
     throw new Error("Minutes must be positive to log work.");
   }
 
+  const resolvedTimeZone =
+    timeZone ??
+    process.env.MCP_DEFAULT_TIMEZONE ??
+    (await fetchAccountTimeZone().catch(() => undefined));
+
   // Prepare query parameters, validating 'end' date if provided
   const params: { minutes: number; end?: string } = { minutes };
   if (end) {
     try {
       // Use parseDeadline to validate and normalize the end date string
       // Reclaim API seems to expect ISO string for 'end' param based on prior JS
-      const parsedEnd = parseDeadline(end, { timeZone });
+      const parsedEnd = parseDeadline(end, { timeZone: resolvedTimeZone });
       // Ensure it includes time if only date was given - Reclaim might need time
       if (parsedEnd.length === 10) {
         // YYYY-MM-DD
@@ -800,6 +1378,7 @@ export async function logWorkForTask(
 
   try {
     assertToken();
+    debugLog(`${context} params`, params);
     const { data } = await reclaim.post(
       `/planner/log-work/task/${taskId}`,
       null,
