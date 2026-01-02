@@ -26,10 +26,14 @@ export async function wrapApiCall(
 
     let contentParts: TextContent[]; // Explicitly type as TextContent array
 
+    let structuredContent: Record<string, unknown> | undefined;
+
     // Handle successful void promises (e.g., from deleteTask)
     if (result === undefined) {
+      const successPayload = { success: true };
+      structuredContent = { result: successPayload };
       contentParts = [
-        { type: "text", text: JSON.stringify({ success: true }, null, 2) },
+        { type: "text", text: JSON.stringify(successPayload, null, 2) },
       ];
     } else {
       // Attempt to stringify complex objects, otherwise return simple types as string
@@ -41,10 +45,13 @@ export async function wrapApiCall(
       // Always return as 'text' content type for simplicity, as the SDK expects specific types.
       // If the SDK had an 'application/json' type, we could use that conditionally.
       contentParts = [{ type: "text", text: resultText }];
+
+      structuredContent = { result: result as unknown };
     }
 
     return {
       content: contentParts,
+      structuredContent,
     };
   } catch (e: unknown) {
     // Catch variable is 'unknown'

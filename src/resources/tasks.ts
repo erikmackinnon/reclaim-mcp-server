@@ -80,7 +80,7 @@ async function wrapResourceCall(
 export function registerTaskResources(server: McpServer): void {
   // Register a static resource for active tasks.
   // The signature requires (name, uriTemplate, [metadata], handler)
-  server.resource(
+  server.registerResource(
     "reclaim_active_tasks", // Internal name for the resource registration
     "tasks://active", // The static URI string for this resource
     {
@@ -88,11 +88,11 @@ export function registerTaskResources(server: McpServer): void {
       title: "Active Reclaim Tasks",
       description:
         "List of all active tasks from Reclaim.ai. Active means tasks that are not deleted and whose status is not ARCHIVED or CANCELLED. Tasks with status 'COMPLETE' (meaning scheduled time is finished) are included here.",
-      readOnlyHint: true,
+      mimeType: "application/json",
     },
     // Handler function: (uri: URL, params: Record<string, string | string[]>, extra) => Promise<ReadResourceResult>
     // For static URIs, params will be empty.
-    async (uri) => {
+    async (uri: URL) => {
       // Fetch all tasks, then filter for active ones using the client's filter function
       const activeTasksPromise = api
         .listTasks()

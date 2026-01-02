@@ -16,14 +16,6 @@ import {
 // --- Configuration ---
 
 const TOKEN = process.env.RECLAIM_API_KEY;
-if (!TOKEN) {
-  // Use console.error for fatal startup issues
-  console.error("FATAL: RECLAIM_API_KEY environment variable is not set.");
-  console.error(
-    "Please create a .env file in the project root with RECLAIM_API_KEY=your_api_token",
-  );
-  process.exit(1); // Exit if the token is missing, essential for operation
-}
 
 // --- Axios Instance ---
 
@@ -34,13 +26,46 @@ if (!TOKEN) {
 export const reclaim: AxiosInstance = axios.create({
   baseURL: "https://api.app.reclaim.ai/api/",
   headers: {
-    Authorization: `Bearer ${TOKEN}`,
+    ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
     "Content-Type": "application/json",
     Accept: "application/json", // Explicitly accept JSON responses
   },
   // Optional: Add a timeout for requests
   // timeout: 10000, // 10 seconds
 });
+
+/**
+ * Ensures the API token is available and refreshes the Axios auth header if needed.
+ */
+function assertToken(): void {
+  const token = process.env.RECLAIM_API_KEY;
+  if (!token) {
+    throw new ReclaimError(
+      "RECLAIM_API_KEY environment variable is not set. Configure it before using Reclaim tools.",
+    );
+  }
+
+  const authHeader = `Bearer ${token}`;
+  const currentHeader = reclaim.defaults.headers.common["Authorization"];
+  if (currentHeader !== authHeader) {
+    reclaim.defaults.headers.common["Authorization"] = authHeader;
+  }
+}
+
+function validateChunkSizes(payload: Partial<TaskInputData>): void {
+  const minChunkSize = payload.minChunkSize;
+  const maxChunkSize = payload.maxChunkSize;
+
+  if (
+    typeof minChunkSize === "number" &&
+    typeof maxChunkSize === "number" &&
+    minChunkSize > maxChunkSize
+  ) {
+    throw new ReclaimError(
+      `minChunkSize (${minChunkSize}) cannot be greater than maxChunkSize (${maxChunkSize}).`,
+    );
+  }
+}
 
 // --- Helper Functions ---
 
@@ -54,8 +79,169 @@ export const reclaim: AxiosInstance = axios.create({
  * an ISO 8601 date/time string, or undefined.
  * @returns An ISO 8601 date/time string representing the calculated deadline.
  */
+const LOCAL_DATETIME_REGEX =
+  /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2})(?::(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?)?$/;
+const HAS_TIMEZONE_REGEX = /([zZ]|[+-]\d{2}:\d{2})$/;
+
+function resolveTimeZone(timeZone?: string): string | undefined {
+  if (timeZone && timeZone.trim().length > 0) {
+    return timeZone.trim();
+  }
+
+  if (process.env.MCP_DEFAULT_TIMEZONE) {
+    return process.env.MCP_DEFAULT_TIMEZONE;
+  }
+
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+function assertValidTimeZone(timeZone: string): void {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+  } catch (error) {
+    throw new ReclaimError(
+      `Invalid timeZone "${timeZone}". Use an IANA time zone like "America/Los_Angeles".`,
+    );
+  }
+}
+
+type TimeParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+};
+
+function getZonedParts(date: Date, timeZone: string): TimeParts {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  const parts = formatter.formatToParts(date);
+  const partMap: Record<string, number> = {};
+  for (const part of parts) {
+    if (part.type !== "literal") {
+      partMap[part.type] = Number(part.value);
+    }
+  }
+
+  return {
+    year: partMap.year,
+    month: partMap.month,
+    day: partMap.day,
+    hour: partMap.hour ?? 0,
+    minute: partMap.minute ?? 0,
+    second: partMap.second ?? 0,
+  };
+}
+
+function partsToUtcMillis(parts: TimeParts): number {
+  return Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
+}
+
+function partsMatch(a: TimeParts, b: TimeParts): boolean {
+  return (
+    a.year === b.year &&
+    a.month === b.month &&
+    a.day === b.day &&
+    a.hour === b.hour &&
+    a.minute === b.minute &&
+    a.second === b.second
+  );
+}
+
+function getTimeZoneOffset(date: Date, timeZone: string): number {
+  const parts = getZonedParts(date, timeZone);
+  const asUtc = partsToUtcMillis(parts);
+  return asUtc - date.getTime();
+}
+
+function zonedTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  millisecond: number,
+  timeZone: string,
+): Date {
+  const desiredParts: TimeParts = {
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    second,
+  };
+  const utcGuessMillis = Date.UTC(
+    year,
+    month - 1,
+    day,
+    hour,
+    minute,
+    second,
+    millisecond,
+  );
+
+  const offsets = new Set<number>();
+  const guessDate = new Date(utcGuessMillis);
+  offsets.add(getTimeZoneOffset(guessDate, timeZone));
+
+  for (const offset of Array.from(offsets)) {
+    const candidate = new Date(utcGuessMillis - offset);
+    offsets.add(getTimeZoneOffset(candidate, timeZone));
+    offsets.add(getTimeZoneOffset(new Date(candidate.getTime() + 3600000), timeZone));
+    offsets.add(getTimeZoneOffset(new Date(candidate.getTime() - 3600000), timeZone));
+  }
+
+  const candidates = Array.from(offsets).map((offset) => {
+    const date = new Date(utcGuessMillis - offset);
+    return { date, parts: getZonedParts(date, timeZone) };
+  });
+
+  const matching = candidates
+    .filter((candidate) => partsMatch(candidate.parts, desiredParts))
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  if (matching.length > 0) {
+    return matching[0].date;
+  }
+
+  const desiredNaive = partsToUtcMillis(desiredParts);
+  let bestCandidate = candidates[0];
+  let bestDiff = Number.POSITIVE_INFINITY;
+  for (const candidate of candidates) {
+    const candidateNaive = partsToUtcMillis(candidate.parts);
+    const diff = Math.abs(candidateNaive - desiredNaive);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestCandidate = candidate;
+    }
+  }
+
+  return bestCandidate.date;
+}
+
 export function parseDeadline(
   deadlineInput: number | string | undefined,
+  options?: { timeZone?: string },
 ): string {
   const now = new Date();
   try {
@@ -65,30 +251,82 @@ export function parseDeadline(
         console.warn(
           `Received non-positive number of days "${deadlineInput}" for deadline/snooze, using current time.`,
         );
-        // Or perhaps default to 24 hours? Let's default to now to avoid accidental pushing out.
-        // throw new Error("Number of days must be positive.");
-        return now.toISOString(); // Defaulting to 'now' might be safer than pushing out
+        return now.toISOString();
       }
       const deadline = new Date(now);
       deadline.setDate(deadline.getDate() + deadlineInput);
       // Keep the current time, just advance the date
       return deadline.toISOString();
-    } else if (typeof deadlineInput === "string") {
-      // Attempt to parse as a date/datetime string
-      const parsed = new Date(deadlineInput);
-      if (isNaN(parsed.getTime())) {
-        // Handle potential simple date format like YYYY-MM-DD by assuming start of day UTC
-        if (/^\d{4}-\d{2}-\d{2}$/.test(deadlineInput)) {
-          const [year, month, day] = deadlineInput.split("-").map(Number);
-          // Month is 0-indexed in Date.UTC
-          const utcDate = new Date(Date.UTC(year, month - 1, day));
-          if (!isNaN(utcDate.getTime())) {
-            return utcDate.toISOString();
-          }
+    }
+
+    if (typeof deadlineInput === "string") {
+      const trimmed = deadlineInput.trim();
+      if (HAS_TIMEZONE_REGEX.test(trimmed)) {
+        const parsed = new Date(trimmed);
+        if (isNaN(parsed.getTime())) {
+          throw new Error(`Invalid date format: "${deadlineInput}"`);
         }
+        return parsed.toISOString();
+      }
+
+      const match = trimmed.match(LOCAL_DATETIME_REGEX);
+      if (match) {
+        const [
+          ,
+          yearRaw,
+          monthRaw,
+          dayRaw,
+          hourRaw,
+          minuteRaw,
+          secondRaw,
+          millisecondRaw,
+        ] = match;
+        const year = Number(yearRaw);
+        const month = Number(monthRaw);
+        const day = Number(dayRaw);
+        const hour = hourRaw ? Number(hourRaw) : 0;
+        const minute = minuteRaw ? Number(minuteRaw) : 0;
+        const second = secondRaw ? Number(secondRaw) : 0;
+        const millisecond = millisecondRaw
+          ? Number(millisecondRaw.padEnd(3, "0"))
+          : 0;
+
+        const timeZone = resolveTimeZone(options?.timeZone);
+        if (timeZone) {
+          assertValidTimeZone(timeZone);
+          const utcDate = zonedTimeToUtc(
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            millisecond,
+            timeZone,
+          );
+          return utcDate.toISOString();
+        }
+
+        const localDate = new Date(
+          year,
+          month - 1,
+          day,
+          hour,
+          minute,
+          second,
+          millisecond,
+        );
+        if (isNaN(localDate.getTime())) {
+          throw new Error(`Invalid date format: "${deadlineInput}"`);
+        }
+        return localDate.toISOString();
+      }
+
+      const parsedFallback = new Date(trimmed);
+      if (isNaN(parsedFallback.getTime())) {
         throw new Error(`Invalid date format: "${deadlineInput}"`);
       }
-      return parsed.toISOString();
+      return parsedFallback.toISOString();
     }
     // If deadlineInput is undefined or null, fall through to default
   } catch (error) {
@@ -200,6 +438,7 @@ const handleApiError = (error: unknown, context: string): never => {
 export async function listTasks(): Promise<Task[]> {
   const context = "listTasks";
   try {
+    assertToken();
     const { data } = await reclaim.get<Task[]>("/tasks");
     // It's possible the API returns non-array on error, though Axios usually throws. Add check.
     return Array.isArray(data) ? data : [];
@@ -222,6 +461,7 @@ export async function listTasks(): Promise<Task[]> {
 export async function getTask(taskId: number): Promise<Task> {
   const context = `getTask(taskId=${taskId})`;
   try {
+    assertToken();
     const { data } = await reclaim.get<Task>(`/tasks/${taskId}`);
     return data;
   } catch (error) {
@@ -237,26 +477,34 @@ export async function getTask(taskId: number): Promise<Task> {
  * @returns A promise resolving to the newly created Task object as returned by the API.
  * @throws {ReclaimError} If the API request fails (e.g., validation error - 400).
  */
-export async function createTask(taskData: TaskInputData): Promise<Task> {
+export async function createTask(
+  taskData: TaskInputData,
+  timeZone?: string,
+): Promise<Task> {
   const context = "createTask";
   try {
+    assertToken();
     // API expects 'due', not 'deadline'. parseDeadline handles conversion and default.
     const apiPayload: Partial<TaskInputData> = { ...taskData }; // Clone to avoid modifying input object
 
     // Handle deadline/due conversion
     if ("deadline" in apiPayload && apiPayload.deadline !== undefined) {
-      apiPayload.due = parseDeadline(apiPayload.deadline);
+      apiPayload.due = parseDeadline(apiPayload.deadline, { timeZone });
       delete apiPayload.deadline; // Remove original deadline field
     } else if (!apiPayload.due) {
       // Ensure 'due' exists, defaulting if neither 'due' nor 'deadline' provided
-      apiPayload.due = parseDeadline(undefined); // Defaults to 24h
+      apiPayload.due = parseDeadline(undefined, { timeZone }); // Defaults to 24h
     }
 
     // Handle snoozeUntil conversion
     if ("snoozeUntil" in apiPayload && apiPayload.snoozeUntil !== undefined) {
       // Use parseDeadline logic for snoozeUntil as well
-      apiPayload.snoozeUntil = parseDeadline(apiPayload.snoozeUntil);
+      apiPayload.snoozeUntil = parseDeadline(apiPayload.snoozeUntil, {
+        timeZone,
+      });
     }
+
+    validateChunkSizes(apiPayload);
 
     // Clean undefined keys before sending to API
     Object.keys(apiPayload).forEach((key) => {
@@ -274,6 +522,61 @@ export async function createTask(taskData: TaskInputData): Promise<Task> {
 }
 
 /**
+ * Creates a new task in Reclaim and places it at an explicit start time.
+ *
+ * Reclaim exposes this as `POST /api/tasks/at-time?startTime=...`.
+ *
+ * @param startTime - ISO 8601 date/time string. The server will place the task at this time.
+ * @param taskData - Task fields (same as `createTask`).
+ * @returns A promise resolving to the API response (Reclaim returns a view object).
+ * @throws {ReclaimError} If the API request fails.
+ */
+export async function createTaskAtTime(
+  startTime: string,
+  taskData: TaskInputData,
+  timeZone?: string,
+): Promise<any> {
+  const context = `createTaskAtTime(startTime=${startTime})`;
+  try {
+    assertToken();
+
+    const startTimeIso = parseDeadline(startTime, { timeZone });
+    const apiPayload: Partial<TaskInputData> = { ...taskData };
+
+    // Handle deadline/due conversion; default due to the start time to avoid an unrelated fallback.
+    if ("deadline" in apiPayload && apiPayload.deadline !== undefined) {
+      apiPayload.due = parseDeadline(apiPayload.deadline, { timeZone });
+      delete apiPayload.deadline;
+    } else if (!apiPayload.due) {
+      apiPayload.due = startTimeIso;
+    }
+
+    // Handle snoozeUntil conversion
+    if ("snoozeUntil" in apiPayload && apiPayload.snoozeUntil !== undefined) {
+      apiPayload.snoozeUntil = parseDeadline(apiPayload.snoozeUntil, {
+        timeZone,
+      });
+    }
+
+    validateChunkSizes(apiPayload);
+
+    // Clean undefined keys before sending to API
+    Object.keys(apiPayload).forEach((key) => {
+      if ((apiPayload as any)[key] === undefined) {
+        delete (apiPayload as any)[key];
+      }
+    });
+
+    const { data } = await reclaim.post("/tasks/at-time", apiPayload, {
+      params: { startTime: startTimeIso },
+    });
+    return data;
+  } catch (error) {
+    return handleApiError(error, context);
+  }
+}
+
+/**
  * Updates an existing task with the specified ID using the provided data.
  * Only the fields included in `taskData` will be updated (PATCH semantics).
  * @param taskId - The numeric ID of the task to update.
@@ -284,22 +587,28 @@ export async function createTask(taskData: TaskInputData): Promise<Task> {
 export async function updateTask(
   taskId: number,
   taskData: TaskInputData,
+  timeZone?: string,
 ): Promise<Task> {
   const context = `updateTask(taskId=${taskId})`;
   try {
+    assertToken();
     // API expects 'due', not 'deadline'. parseDeadline handles conversion.
     const apiPayload: Partial<TaskInputData> = { ...taskData }; // Clone to avoid modifying input object
 
     // Handle deadline/due conversion
     if ("deadline" in apiPayload && apiPayload.deadline !== undefined) {
-      apiPayload.due = parseDeadline(apiPayload.deadline);
+      apiPayload.due = parseDeadline(apiPayload.deadline, { timeZone });
       delete apiPayload.deadline; // Remove original deadline field
     }
 
     // Handle snoozeUntil conversion
     if ("snoozeUntil" in apiPayload && apiPayload.snoozeUntil !== undefined) {
-      apiPayload.snoozeUntil = parseDeadline(apiPayload.snoozeUntil);
+      apiPayload.snoozeUntil = parseDeadline(apiPayload.snoozeUntil, {
+        timeZone,
+      });
     }
+
+    validateChunkSizes(apiPayload);
 
     // Remove undefined keys explicitly for PATCH safety
     Object.keys(apiPayload).forEach((key) => {
@@ -335,6 +644,7 @@ export async function updateTask(
 export async function deleteTask(taskId: number): Promise<void> {
   const context = `deleteTask(taskId=${taskId})`;
   try {
+    assertToken();
     await reclaim.delete(`/tasks/${taskId}`);
     // Successful deletion returns 204 No Content, promise resolves void implicitly
   } catch (error) {
@@ -353,6 +663,7 @@ export async function deleteTask(taskId: number): Promise<void> {
 export async function markTaskComplete(taskId: number): Promise<any> {
   const context = `markTaskComplete(taskId=${taskId})`;
   try {
+    assertToken();
     // Endpoint might return empty body or a confirmation object
     const { data } = await reclaim.post(`/planner/done/task/${taskId}`);
     return data ?? { success: true }; // Provide a default success object if body is empty
@@ -370,6 +681,7 @@ export async function markTaskComplete(taskId: number): Promise<any> {
 export async function markTaskIncomplete(taskId: number): Promise<any> {
   const context = `markTaskIncomplete(taskId=${taskId})`;
   try {
+    assertToken();
     const { data } = await reclaim.post(`/planner/unarchive/task/${taskId}`);
     return data ?? { success: true };
   } catch (error) {
@@ -394,6 +706,7 @@ export async function addTimeToTask(
     throw new Error("Minutes must be positive to add time.");
   }
   try {
+    assertToken();
     // API expects minutes as a query parameter
     const { data } = await reclaim.post(
       `/planner/add-time/task/${taskId}`,
@@ -417,6 +730,7 @@ export async function addTimeToTask(
 export async function startTaskTimer(taskId: number): Promise<any> {
   const context = `startTaskTimer(taskId=${taskId})`;
   try {
+    assertToken();
     const { data } = await reclaim.post(`/planner/start/task/${taskId}`);
     return data ?? { success: true };
   } catch (error) {
@@ -433,6 +747,7 @@ export async function startTaskTimer(taskId: number): Promise<any> {
 export async function stopTaskTimer(taskId: number): Promise<any> {
   const context = `stopTaskTimer(taskId=${taskId})`;
   try {
+    assertToken();
     const { data } = await reclaim.post(`/planner/stop/task/${taskId}`);
     return data ?? { success: true };
   } catch (error) {
@@ -452,6 +767,7 @@ export async function logWorkForTask(
   taskId: number,
   minutes: number,
   end?: string,
+  timeZone?: string,
 ): Promise<any> {
   const context = `logWorkForTask(taskId=${taskId}, minutes=${minutes}, end=${end ?? "now"})`;
   if (minutes <= 0) {
@@ -464,7 +780,7 @@ export async function logWorkForTask(
     try {
       // Use parseDeadline to validate and normalize the end date string
       // Reclaim API seems to expect ISO string for 'end' param based on prior JS
-      const parsedEnd = parseDeadline(end);
+      const parsedEnd = parseDeadline(end, { timeZone });
       // Ensure it includes time if only date was given - Reclaim might need time
       if (parsedEnd.length === 10) {
         // YYYY-MM-DD
@@ -483,6 +799,7 @@ export async function logWorkForTask(
   }
 
   try {
+    assertToken();
     const { data } = await reclaim.post(
       `/planner/log-work/task/${taskId}`,
       null,
@@ -503,6 +820,7 @@ export async function logWorkForTask(
 export async function clearTaskExceptions(taskId: number): Promise<any> {
   const context = `clearTaskExceptions(taskId=${taskId})`;
   try {
+    assertToken();
     const { data } = await reclaim.post(
       `/planner/clear-exceptions/task/${taskId}`,
     );
@@ -521,6 +839,7 @@ export async function clearTaskExceptions(taskId: number): Promise<any> {
 export async function prioritizeTask(taskId: number): Promise<any> {
   const context = `prioritizeTask(taskId=${taskId})`;
   try {
+    assertToken();
     const { data } = await reclaim.post(`/planner/prioritize/task/${taskId}`);
     return data ?? { success: true };
   } catch (error) {

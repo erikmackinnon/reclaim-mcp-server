@@ -23,6 +23,20 @@ export function registerTaskActionTools(server: McpServer): void {
     .number()
     .int()
     .positive("Task ID must be a positive integer.");
+  const endDateSchema = z.string().regex(
+    /^\d{4}-\d{2}-\d{2}$/, {
+      message: "End date must be in YYYY-MM-DD format.",
+    },
+  );
+  const endDateTimeSchema = z
+    .string()
+    .regex(
+      /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:[zZ]|[+-]\d{2}:\d{2})?$/,
+      {
+        message:
+          "End time must be ISO 8601 (YYYY-MM-DDTHH:mm with optional seconds and offset).",
+      },
+    );
   const statusNote =
     "IMPORTANT NOTE: Tasks with 'status: COMPLETE' were NOT marked complete by the user. This means the user finished the initial block of time allocated to the task but did NOT finish the task. If asked to list all tasks or all active tasks, include each 'COMPLETE' task unless the user requests otherwise. Do NOT skip 'COMPLETE' tasks.";
   const getTaskStatusNote =
@@ -31,17 +45,27 @@ export function registerTaskActionTools(server: McpServer): void {
   // --- Tool Definitions ---
 
   // List tasks tool (Ported from return_tasks flag in prior JS implementation)
-  server.tool(
+  server.registerTool(
     "reclaim_list_tasks",
-    // Zod schema for parameters
     {
-      filter: z
-        .enum(["active", "all"])
-        .optional()
-        .default("active")
-        .describe(
-          'Filter tasks: "active" (default) includes non-deleted tasks whose status is not ARCHIVED or CANCELLED; "all" includes all tasks.',
-        ),
+      title: "List Reclaim Tasks",
+      description:
+        "List Reclaim.ai tasks, optionally filtering for active ones (not deleted, ARCHIVED, or CANCELLED).",
+      // Zod schema for parameters
+      inputSchema: {
+        filter: z
+          .enum(["active", "all"])
+          .optional()
+          .default("active")
+          .describe(
+            'Filter tasks: "active" (default) includes non-deleted tasks whose status is not ARCHIVED or CANCELLED; "all" includes all tasks.',
+          ),
+      },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        destructiveHint: false,
+      },
     },
     // Async handler function
     async ({ filter }) => {
@@ -67,14 +91,24 @@ export function registerTaskActionTools(server: McpServer): void {
       }
       return result;
     },
-    // .annotations({ description: "Lists Reclaim.ai tasks, optionally filtering for active ones (not deleted, ARCHIVED, or CANCELLED)." })
   );
 
   // Get specific task tool
-  server.tool(
+  server.registerTool(
     "reclaim_get_task",
-    // Zod schema for parameters
-    { taskId: taskIdSchema.describe("The unique ID of the task to fetch.") },
+    {
+      title: "Get Reclaim Task",
+      description: "Fetch details for a specific Reclaim.ai task by its ID.",
+      // Zod schema for parameters
+      inputSchema: {
+        taskId: taskIdSchema.describe("The unique ID of the task to fetch."),
+      },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        destructiveHint: false,
+      },
+    },
     // Async handler function using wrapApiCall
     async ({ taskId }) => {
       // Wrap the API call and add the explanatory note to the output content
@@ -87,135 +121,204 @@ export function registerTaskActionTools(server: McpServer): void {
       }
       return result;
     },
-    // .annotations({ description: "Fetch details for a specific Reclaim.ai task by its ID." })
   );
 
   // Mark task complete tool
-  server.tool(
+  server.registerTool(
     "reclaim_mark_complete",
     {
-      taskId: taskIdSchema.describe(
-        "The unique ID of the task to mark as complete.",
-      ),
+      title: "Mark Reclaim Task Complete",
+      description: "Mark a specific Reclaim.ai task as completed/done by the user.",
+      inputSchema: {
+        taskId: taskIdSchema.describe(
+          "The unique ID of the task to mark as complete.",
+        ),
+      },
+      annotations: {
+        idempotentHint: true,
+        destructiveHint: false,
+      },
     },
     async ({ taskId }) => wrapApiCall(api.markTaskComplete(taskId)),
-    // .annotations({ description: "Mark a specific Reclaim.ai task as completed/done by the user." })
   );
 
   // Mark task incomplete tool
-  server.tool(
+  server.registerTool(
     "reclaim_mark_incomplete",
     {
-      taskId: taskIdSchema.describe(
-        "The unique ID of the task to mark as incomplete (unarchive).",
-      ),
+      title: "Mark Reclaim Task Incomplete",
+      description: "Mark a specific Reclaim.ai task as incomplete (unarchive it).",
+      inputSchema: {
+        taskId: taskIdSchema.describe(
+          "The unique ID of the task to mark as incomplete (unarchive).",
+        ),
+      },
+      annotations: {
+        idempotentHint: true,
+        destructiveHint: false,
+      },
     },
     async ({ taskId }) => wrapApiCall(api.markTaskIncomplete(taskId)),
-    // .annotations({ description: "Mark a specific Reclaim.ai task as incomplete (e.g., unarchive it)." })
   );
 
   // Delete task tool
-  server.tool(
+  server.registerTool(
     "reclaim_delete_task",
-    { taskId: taskIdSchema.describe("The unique ID of the task to delete.") },
+    {
+      title: "Delete Reclaim Task",
+      description: "Permanently delete a specific Reclaim.ai task.",
+      inputSchema: {
+        taskId: taskIdSchema.describe("The unique ID of the task to delete."),
+      },
+      annotations: {
+        idempotentHint: true,
+        destructiveHint: true,
+      },
+    },
     async ({ taskId }) => wrapApiCall(api.deleteTask(taskId)),
-    // Consider adding destructiveHint=true via annotations if needed by clients
-    // .annotations({ description: "Permanently delete a specific Reclaim.ai task.", destructiveHint: true });
   );
 
   // Add time to task tool
-  server.tool(
+  server.registerTool(
     "reclaim_add_time",
     {
-      taskId: taskIdSchema.describe(
-        "The unique ID of the task to add time to.",
-      ),
-      minutes: z
-        .number()
-        .int()
-        .positive("Minutes must be a positive integer.")
-        .describe("Number of minutes to add to the task schedule."),
+      title: "Add Time to Reclaim Task",
+      description: "Add scheduled time (in minutes) to a specific Reclaim.ai task.",
+      inputSchema: {
+        taskId: taskIdSchema.describe(
+          "The unique ID of the task to add time to.",
+        ),
+        minutes: z
+          .number()
+          .int()
+          .positive("Minutes must be a positive integer.")
+          .describe("Number of minutes to add to the task schedule."),
+      },
+      annotations: {
+        idempotentHint: false,
+        destructiveHint: false,
+      },
     },
     async ({ taskId, minutes }) =>
       wrapApiCall(api.addTimeToTask(taskId, minutes)),
-    // .annotations({ description: "Add scheduled time (in minutes) to a specific Reclaim.ai task." })
   );
 
   // Start task timer tool
-  server.tool(
+  server.registerTool(
     "reclaim_start_timer",
     {
-      taskId: taskIdSchema.describe(
-        "The unique ID of the task to start the timer for.",
-      ),
+      title: "Start Reclaim Task Timer",
+      description: "Start the live timer for a specific Reclaim.ai task.",
+      inputSchema: {
+        taskId: taskIdSchema.describe(
+          "The unique ID of the task to start the timer for.",
+        ),
+      },
+      annotations: {
+        idempotentHint: true,
+        destructiveHint: false,
+      },
     },
     async ({ taskId }) => wrapApiCall(api.startTaskTimer(taskId)),
-    // .annotations({ description: "Start the live timer for a specific Reclaim.ai task." })
   );
 
   // Stop task timer tool
-  server.tool(
+  server.registerTool(
     "reclaim_stop_timer",
     {
-      taskId: taskIdSchema.describe(
-        "The unique ID of the task to stop the timer for.",
-      ),
+      title: "Stop Reclaim Task Timer",
+      description: "Stop the live timer for a specific Reclaim.ai task.",
+      inputSchema: {
+        taskId: taskIdSchema.describe(
+          "The unique ID of the task to stop the timer for.",
+        ),
+      },
+      annotations: {
+        idempotentHint: true,
+        destructiveHint: false,
+      },
     },
     async ({ taskId }) => wrapApiCall(api.stopTaskTimer(taskId)),
-    // .annotations({ description: "Stop the live timer for a specific Reclaim.ai task." })
   );
 
   // Log work for task tool
-  server.tool(
+  server.registerTool(
     "reclaim_log_work",
     {
-      taskId: taskIdSchema.describe(
-        "The unique ID of the task to log work against.",
-      ),
-      minutes: z
-        .number()
-        .int()
-        .positive("Minutes must be a positive integer.")
-        .describe("Number of minutes worked."),
-      // Schema accepts ISO datetime string or YYYY-MM-DD date string
-      end: z
-        .union([
-          z.string().datetime({
-            message: "End time must be a valid ISO 8601 date/time string.",
-          }),
-          z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
-            message: "End date must be in YYYY-MM-DD format.",
-          }),
-        ])
-        .optional()
-        .describe(
-          "Optional end time/date of the work log (ISO 8601 or YYYY-MM-DD). Defaults to now.",
+      title: "Log Work for Reclaim Task",
+      description:
+        "Log completed work time (in minutes) against a specific Reclaim.ai task.",
+      inputSchema: {
+        taskId: taskIdSchema.describe(
+          "The unique ID of the task to log work against.",
         ),
+        minutes: z
+          .number()
+          .int()
+          .positive("Minutes must be a positive integer.")
+          .describe("Number of minutes worked."),
+        // Schema accepts ISO datetime string or YYYY-MM-DD date string
+        end: z
+          .union([endDateTimeSchema, endDateSchema])
+          .optional()
+          .describe(
+            "Optional end time/date of the work log (ISO 8601 or YYYY-MM-DD). Defaults to now.",
+          ),
+        timeZone: z
+          .string()
+          .optional()
+          .describe(
+            "IANA time zone used to interpret end time without an offset (e.g., America/Los_Angeles).",
+          ),
+        timezone: z.string().optional().describe("Alias for timeZone."),
+      },
+      annotations: {
+        idempotentHint: false,
+        destructiveHint: false,
+      },
     },
-    async ({ taskId, minutes, end }) =>
-      wrapApiCall(api.logWorkForTask(taskId, minutes, end)),
-    // .annotations({ description: "Log completed work time (in minutes) against a specific Reclaim.ai task." })
+    async ({ taskId, minutes, end, timeZone, timezone }) =>
+      wrapApiCall(
+        api.logWorkForTask(taskId, minutes, end, timeZone ?? timezone),
+      ),
   );
 
   // Clear task exceptions tool
-  server.tool(
+  server.registerTool(
     "reclaim_clear_exceptions",
     {
-      taskId: taskIdSchema.describe(
-        "The unique ID of the task whose scheduling exceptions should be cleared.",
-      ),
+      title: "Clear Reclaim Task Exceptions",
+      description:
+        "Clear any scheduling exceptions for a specific Reclaim.ai task.",
+      inputSchema: {
+        taskId: taskIdSchema.describe(
+          "The unique ID of the task whose scheduling exceptions should be cleared.",
+        ),
+      },
+      annotations: {
+        idempotentHint: true,
+        destructiveHint: false,
+      },
     },
     async ({ taskId }) => wrapApiCall(api.clearTaskExceptions(taskId)),
-    // .annotations({ description: "Clear any scheduling exceptions for a specific Reclaim.ai task." })
   );
 
   // Prioritize task tool
-  server.tool(
+  server.registerTool(
     "reclaim_prioritize",
     {
-      taskId: taskIdSchema.describe("The unique ID of the task to prioritize."),
+      title: "Prioritize Reclaim Task",
+      description: "Mark a specific Reclaim.ai task for prioritization.",
+      inputSchema: {
+        taskId: taskIdSchema.describe(
+          "The unique ID of the task to prioritize.",
+        ),
+      },
+      annotations: {
+        idempotentHint: true,
+        destructiveHint: false,
+      },
     },
     async ({ taskId }) => wrapApiCall(api.prioritizeTask(taskId)),
-    // .annotations({ description: "Mark a specific Reclaim.ai task for prioritization in the schedule." })
   );
 }

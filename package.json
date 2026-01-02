@@ -49,12 +49,14 @@
   },
   "homepage": "https://github.com/jj3ny/reclaim-mcp-server#readme",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.1",
+    "@modelcontextprotocol/sdk": "^1.25.1",
     "axios": "^1.8.4",
     "dotenv": "^16.5.0",
-    "zod": "^3.24.3"
+    "express": "^5.2.1",
+    "zod": "^3.25.6"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@types/nock": "^11.1.0",
     "@types/node": "^22.14.1",
     "@typescript-eslint/eslint-plugin": "^7.14.1",
@@ -88,6 +90,86 @@
           "type": "secret",
           "placeholder": "e.g., 6dac21c9-ca90-4412-9d06-d4c242d3b9c6",
           "label": "Reclaim.ai API Token"
+        }
+      },
+      "MCP_TRANSPORT": {
+        "description": "Transport mode for the MCP server. Use 'stdio' for local MCP clients or 'http' for Streamable HTTP transport.",
+        "type": "string",
+        "required": false,
+        "input": {
+          "type": "text",
+          "placeholder": "stdio | http",
+          "label": "MCP Transport"
+        }
+      },
+      "MCP_HTTP_HOST": {
+        "description": "Host interface for Streamable HTTP transport (default: 127.0.0.1).",
+        "type": "string",
+        "required": false,
+        "input": {
+          "type": "text",
+          "placeholder": "127.0.0.1",
+          "label": "MCP HTTP Host"
+        }
+      },
+      "MCP_HTTP_PORT": {
+        "description": "Port for Streamable HTTP transport (default: 3000).",
+        "type": "string",
+        "required": false,
+        "input": {
+          "type": "text",
+          "placeholder": "3000",
+          "label": "MCP HTTP Port"
+        }
+      },
+      "MCP_HTTP_PATH": {
+        "description": "Path for Streamable HTTP requests (default: /mcp).",
+        "type": "string",
+        "required": false,
+        "input": {
+          "type": "text",
+          "placeholder": "/mcp",
+          "label": "MCP HTTP Path"
+        }
+      },
+      "MCP_HTTP_ALLOWED_ORIGINS": {
+        "description": "Comma-separated list of allowed Origin values for Streamable HTTP requests. Defaults to http://localhost and http://127.0.0.1.",
+        "type": "string",
+        "required": false,
+        "input": {
+          "type": "text",
+          "placeholder": "http://localhost,http://127.0.0.1",
+          "label": "MCP HTTP Allowed Origins"
+        }
+      },
+      "MCP_HTTP_ALLOW_ANY_ORIGIN": {
+        "description": "Set to true to allow all Origins (not recommended unless you trust the network).",
+        "type": "string",
+        "required": false,
+        "input": {
+          "type": "text",
+          "placeholder": "false",
+          "label": "MCP HTTP Allow Any Origin"
+        }
+      },
+      "MCP_HTTP_STATELESS": {
+        "description": "Set to true to run Streamable HTTP in stateless mode (no session storage).",
+        "type": "string",
+        "required": false,
+        "input": {
+          "type": "text",
+          "placeholder": "false",
+          "label": "MCP HTTP Stateless"
+        }
+      },
+      "MCP_DEFAULT_TIMEZONE": {
+        "description": "Default IANA time zone used to interpret local date/time inputs when no offset is provided (e.g., America/Los_Angeles).",
+        "type": "string",
+        "required": false,
+        "input": {
+          "type": "text",
+          "placeholder": "America/Los_Angeles",
+          "label": "MCP Default Time Zone"
         }
       }
     }

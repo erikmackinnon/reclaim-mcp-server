@@ -59,6 +59,10 @@ export interface TaskInputData {
   eventSubType?: string;
   priority?: "P1" | "P2" | "P3" | "P4";
   timeChunksRequired?: number; // 1 chunk = 15 mins
+  /** Minimum chunk size (15-min increments). Set equal to `timeChunksRequired` to prevent splitting. */
+  minChunkSize?: number;
+  /** Maximum chunk size (15-min increments). Set equal to `timeChunksRequired` to prevent splitting. */
+  maxChunkSize?: number;
   onDeck?: boolean;
   /**
    * Task status. See `Task` interface for notes on the `COMPLETE` status meaning.
@@ -78,8 +82,6 @@ export interface TaskInputData {
   /** Used internally by API client, represents the ISO string for the deadline. Do not set directly if using `deadline`. */
   due?: string;
   // Other potential fields for create/update - check API if needed
-  // minChunkSize?: number;
-  // maxChunkSize?: number;
 }
 
 /**
