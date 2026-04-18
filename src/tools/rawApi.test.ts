@@ -80,12 +80,12 @@ describe("registerRawApiTool", () => {
     const handler = spy.getHandler("reclaim_call_api");
     const result = await handler({
       method: "GET",
-      path: "/tasks/batch/archive",
+      path: "/planner/done/habit/42",
     });
 
     expect(result.isError).toBe(true);
     expect(extractText(result)).toContain("not allowlisted");
-    expect(extractText(result)).toContain("PATCH");
+    expect(extractText(result)).toContain("POST");
   });
 
   it("returns endpoint metadata and destructive annotation for destructive raw calls", async () => {
@@ -99,14 +99,15 @@ describe("registerRawApiTool", () => {
     const handler = spy.getHandler("reclaim_call_api");
     const result = await handler({
       method: "DELETE",
-      path: "/tasks/batch",
-      body: { ids: [101, 202] },
+      path: "/planner/policy/task/101",
     });
 
     expect(result.isError).not.toBe(true);
 
     const payload = result.structuredContent as RawToolResultPayload;
-    expect(payload.result.endpoint.pathTemplate).toBe("/tasks/batch");
+    expect(payload.result.endpoint.pathTemplate).toBe(
+      "/planner/policy/task/{id}",
+    );
     expect(payload.result.endpoint.mode).toBe("raw");
     expect(payload.result.destructiveOperation).toBe(true);
     expect(payload.result.safetyNotice).toContain("marked destructive");

@@ -138,6 +138,6 @@ describe("endpoint registry coverage", () => {
   it("prefers exact/static templates over parameter templates for request matching", () => {
     const batchDelete = matchEndpointRequest("DELETE", "/tasks/batch");
     expect(batchDelete?.pathTemplate).toBe("/tasks/batch");
-    expect(batchDelete?.mode).toBe("raw");
+    expect(batchDelete?.mode).toBe("typed");
   });
 });

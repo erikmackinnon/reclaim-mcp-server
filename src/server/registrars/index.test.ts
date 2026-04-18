@@ -21,6 +21,18 @@ describe("domain registrars", () => {
         "reclaim_get_task_defaults",
         "reclaim_list_tasks",
         "reclaim_get_task",
+        "reclaim_get_task_min_index",
+        "reclaim_list_recommended_tasks",
+        "reclaim_batch_update_tasks",
+        "reclaim_batch_delete_tasks",
+        "reclaim_batch_archive_tasks",
+        "reclaim_batch_complete_tasks",
+        "reclaim_reindex_tasks_by_due",
+        "reclaim_reindex_task",
+        "reclaim_plan_work",
+        "reclaim_restart_task",
+        "reclaim_reschedule_task_event",
+        "reclaim_bulk_reschedule_task_events",
         "reclaim_mark_complete",
         "reclaim_mark_incomplete",
         "reclaim_delete_task",
@@ -41,12 +53,28 @@ describe("domain registrars", () => {
 
     const listTasks = findRegisteredTool(harness.tools, "reclaim_list_tasks");
     const deleteTask = findRegisteredTool(harness.tools, "reclaim_delete_task");
+    const batchDelete = findRegisteredTool(
+      harness.tools,
+      "reclaim_batch_delete_tasks",
+    );
+    const batchArchive = findRegisteredTool(
+      harness.tools,
+      "reclaim_batch_archive_tasks",
+    );
     expectToolAnnotations(listTasks, {
       readOnlyHint: true,
       idempotentHint: true,
       destructiveHint: false,
     });
     expectToolAnnotations(deleteTask, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
+    expectToolAnnotations(batchDelete, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
+    expectToolAnnotations(batchArchive, {
       idempotentHint: true,
       destructiveHint: true,
     });
@@ -57,7 +85,7 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(15);
+    expect(harness.tools.length).toBe(27);
     expect(harness.resources.length).toBe(6);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
@@ -85,7 +113,9 @@ describe("domain registrars", () => {
 
     curatedFallbackRegistrar.register(server);
 
-    expect(harness.tools.map((tool) => tool.name)).toEqual(["reclaim_call_api"]);
+    expect(harness.tools.map((tool) => tool.name)).toEqual([
+      "reclaim_call_api",
+    ]);
     expect(new Set(harness.resources.map((resource) => resource.name))).toEqual(
       new Set([
         "reclaim_current_user_profile",

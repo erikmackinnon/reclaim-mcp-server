@@ -86,6 +86,55 @@ export interface TaskInputData {
   // Other potential fields for create/update - check API if needed
 }
 
+export type PlannerEventId = number | string;
+
+export interface TaskBatchUpdateInput {
+  taskIds: number[];
+  updates: TaskInputData;
+}
+
+export interface TaskBatchIdsInput {
+  taskIds: number[];
+}
+
+export interface RecommendedTasksQuery {
+  limit?: number;
+  offset?: number;
+  onDeck?: boolean;
+  includeArchived?: boolean;
+}
+
+export interface PlannerTaskPlanWorkInput {
+  minutes?: number;
+  end?: string;
+}
+
+export interface PlannerTaskRescheduleInput {
+  plannerEventId?: PlannerEventId;
+  eventId?: PlannerEventId;
+  at?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface PlannerTaskBulkRescheduleInput {
+  plannerEventIds: PlannerEventId[];
+  at?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface TaskMinIndexResponse {
+  minIndex?: number;
+  index?: number;
+  [key: string]: unknown;
+}
+
+export interface ReclaimMutationResponse {
+  success?: boolean;
+  [key: string]: unknown;
+}
+
 /**
  * Custom error class for Reclaim API specific errors.
  * Includes optional status code and detailed error response.

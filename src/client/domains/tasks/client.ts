@@ -7,12 +7,24 @@ import "dotenv/config";
 
 import {
   ReclaimError,
+  type PlannerEventId,
+  type PlannerTaskBulkRescheduleInput,
+  type PlannerTaskPlanWorkInput,
+  type PlannerTaskRescheduleInput,
+  type ReclaimMutationResponse,
+  type RecommendedTasksQuery,
+  type TaskBatchIdsInput,
+  type TaskBatchUpdateInput,
+  type TaskMinIndexResponse,
   type Task,
   type TaskInputData,
 } from "../../../types/reclaim.js";
 import {
+  assertToken,
   debugLog,
   normalizeApiError,
+  normalizeQueryParams,
+  reclaim,
   reclaimHttpClient,
 } from "../../core/http.js";
 
@@ -74,7 +86,9 @@ type TaskDefaults = {
 };
 
 let cachedCurrentUser: CurrentUserResponse | undefined;
-let cachedCurrentUserPromise: Promise<CurrentUserResponse | undefined> | undefined;
+let cachedCurrentUserPromise:
+  | Promise<CurrentUserResponse | undefined>
+  | undefined;
 let cachedAccountTimeZone: string | undefined;
 let cachedTaskDefaults: TaskDefaults | undefined;
 
@@ -111,7 +125,8 @@ export async function fetchAccountTimeZone(): Promise<string | undefined> {
   }
 
   const user = await fetchCurrentUser();
-  const tz = typeof user?.timezone === "string" ? user.timezone.trim() : undefined;
+  const tz =
+    typeof user?.timezone === "string" ? user.timezone.trim() : undefined;
   if (tz) {
     cachedAccountTimeZone = tz;
   }
@@ -207,18 +222,26 @@ const EVENT_SUBTYPE_ALIASES: Record<string, string> = {
   "1ON1": "ONE_ON_ONE",
   ONEONONE: "ONE_ON_ONE",
   "ONE-ON-ONE": "ONE_ON_ONE",
-  "ONE_ON_ONE": "ONE_ON_ONE",
+  ONE_ON_ONE: "ONE_ON_ONE",
   PERSONAL: "OTHER_PERSONAL",
   ERRANDS: "ERRAND",
   FOCUS_TIME: "FOCUS",
 };
-const PERSONAL_SUBTYPES = new Set(["OTHER_PERSONAL", "ERRAND", "HEALTH", "VACATION"]);
+const PERSONAL_SUBTYPES = new Set([
+  "OTHER_PERSONAL",
+  "ERRAND",
+  "HEALTH",
+  "VACATION",
+]);
 
 function normalizeEnumValue(value?: string): string | undefined {
   if (!value) {
     return undefined;
   }
-  return value.trim().toUpperCase().replace(/[\s-]+/g, "_");
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
 }
 
 function normalizeEventCategory(
@@ -242,14 +265,18 @@ function inferCategoryFromSubType(
   return undefined;
 }
 
-function normalizePriority(value?: string, fallback?: string):
-  | "P1"
-  | "P2"
-  | "P3"
-  | "P4" {
+function normalizePriority(
+  value?: string,
+  fallback?: string,
+): "P1" | "P2" | "P3" | "P4" {
   const normalized = normalizeEnumValue(value ?? fallback);
   if (normalized) {
-    if (normalized === "P1" || normalized === "P2" || normalized === "P3" || normalized === "P4") {
+    if (
+      normalized === "P1" ||
+      normalized === "P2" ||
+      normalized === "P3" ||
+      normalized === "P4"
+    ) {
       return normalized;
     }
     if (normalized === "DEFAULT") {
@@ -449,8 +476,12 @@ function zonedTimeToUtc(
   for (const offset of Array.from(offsets)) {
     const candidate = new Date(utcGuessMillis - offset);
     offsets.add(getTimeZoneOffset(candidate, timeZone));
-    offsets.add(getTimeZoneOffset(new Date(candidate.getTime() + 3600000), timeZone));
-    offsets.add(getTimeZoneOffset(new Date(candidate.getTime() - 3600000), timeZone));
+    offsets.add(
+      getTimeZoneOffset(new Date(candidate.getTime() + 3600000), timeZone),
+    );
+    offsets.add(
+      getTimeZoneOffset(new Date(candidate.getTime() - 3600000), timeZone),
+    );
   }
 
   const candidates = Array.from(offsets).map((offset) => {
@@ -795,6 +826,88 @@ function normalizeTaskPatch(
   return output;
 }
 
+function normalizeTaskIds(input: TaskBatchIdsInput, context: string): number[] {
+  const ids = input.taskIds;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new Error("taskIds must include at least one task id.");
+  }
+
+  const normalized = ids.map((value) => {
+    if (!Number.isInteger(value) || value <= 0) {
+      throw new Error(`Invalid task id "${value}" in ${context}.`);
+    }
+    return value;
+  });
+
+  return Array.from(new Set(normalized));
+}
+
+function normalizePlannerEventIds(
+  input: PlannerEventId[],
+  context: string,
+): PlannerEventId[] {
+  if (!Array.isArray(input) || input.length === 0) {
+    throw new Error("plannerEventIds must include at least one event id.");
+  }
+
+  return Array.from(
+    new Set(
+      input.map((value) => {
+        if (typeof value === "number") {
+          if (!Number.isInteger(value) || value <= 0) {
+            throw new Error(
+              `Invalid planner event id "${value}" in ${context}.`,
+            );
+          }
+          return value;
+        }
+        if (typeof value === "string") {
+          const trimmed = value.trim();
+          if (!trimmed) {
+            throw new Error(
+              `Invalid planner event id "${value}" in ${context}.`,
+            );
+          }
+          return trimmed;
+        }
+        throw new Error(
+          `Invalid planner event id "${String(value)}" in ${context}.`,
+        );
+      }),
+    ),
+  );
+}
+
+async function deleteWithBody<T>(
+  url: string,
+  body: unknown,
+  context: string,
+): Promise<T> {
+  debugLog(`${context} payload`, body);
+
+  try {
+    assertToken();
+    const response = await reclaim.request<T>({
+      method: "DELETE",
+      url,
+      data: body,
+    });
+    return response.data;
+  } catch (error) {
+    return normalizeApiError(error, context);
+  }
+}
+
+function asMutationResponse(
+  value: unknown,
+  fallback: ReclaimMutationResponse = { success: true },
+): ReclaimMutationResponse {
+  if (value && typeof value === "object") {
+    return value as ReclaimMutationResponse;
+  }
+  return fallback;
+}
+
 /**
  * Filters an array of Task objects to include only those considered "active".
  *
@@ -990,7 +1103,10 @@ export async function createTaskAtTime(
           apiPayload.timeChunksRequired * 15,
         ).toISOString();
       } else if (!isNaN(startTimeDate.getTime())) {
-        apiPayload.due = deriveDefaultDue(startTimeDate, defaults).toISOString();
+        apiPayload.due = deriveDefaultDue(
+          startTimeDate,
+          defaults,
+        ).toISOString();
       } else {
         apiPayload.due = deriveDefaultDue(new Date(), defaults).toISOString();
       }
@@ -1110,6 +1226,392 @@ export async function deleteTask(taskId: number): Promise<void> {
   const context = `deleteTask(taskId=${taskId})`;
   await reclaimHttpClient.delete(`/tasks/${taskId}`, { context });
   // Successful deletion returns 204 No Content, promise resolves void implicitly
+}
+
+export async function batchUpdateTasks(
+  input: TaskBatchUpdateInput,
+  timeZone?: string,
+): Promise<ReclaimMutationResponse> {
+  const context = "batchUpdateTasks";
+  let payload: Record<string, unknown>;
+
+  try {
+    const taskIds = normalizeTaskIds({ taskIds: input.taskIds }, context);
+    const resolvedTimeZone =
+      timeZone ??
+      process.env.MCP_DEFAULT_TIMEZONE ??
+      (await fetchAccountTimeZone().catch(() => undefined));
+    const defaults = await fetchTaskDefaults().catch(() => undefined);
+    const updates = normalizeTaskPatch(input.updates, defaults);
+
+    if (updates.due !== undefined) {
+      updates.due = parseDeadline(updates.due, { timeZone: resolvedTimeZone });
+    }
+
+    if ("deadline" in updates && updates.deadline !== undefined) {
+      updates.due = parseDeadline(updates.deadline, {
+        timeZone: resolvedTimeZone,
+      });
+      delete updates.deadline;
+    }
+
+    if ("snoozeUntil" in updates && updates.snoozeUntil !== undefined) {
+      updates.snoozeUntil = parseDeadline(updates.snoozeUntil, {
+        timeZone: resolvedTimeZone,
+      });
+    }
+
+    validateChunkSizes(updates);
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === undefined) {
+        delete (updates as Record<string, unknown>)[key];
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      throw new Error("updates must include at least one mutable task field.");
+    }
+
+    payload = {
+      ids: taskIds,
+      ...updates,
+    };
+  } catch (error) {
+    return normalizeApiError(error, context);
+  }
+
+  debugLog(`${context} payload`, payload);
+  const data = await reclaimHttpClient.patch<unknown>("/tasks/batch", payload, {
+    context,
+  });
+  return asMutationResponse(data, { success: true });
+}
+
+export async function batchDeleteTasks(
+  input: TaskBatchIdsInput,
+): Promise<ReclaimMutationResponse> {
+  const context = "batchDeleteTasks";
+  let payload: { ids: number[] };
+
+  try {
+    payload = { ids: normalizeTaskIds(input, context) };
+  } catch (error) {
+    return normalizeApiError(error, context);
+  }
+
+  const data = await deleteWithBody<unknown>("/tasks/batch", payload, context);
+  return asMutationResponse(data, { success: true });
+}
+
+export async function batchArchiveTasks(
+  input: TaskBatchIdsInput,
+): Promise<ReclaimMutationResponse> {
+  const context = "batchArchiveTasks";
+  let payload: { ids: number[] };
+
+  try {
+    payload = { ids: normalizeTaskIds(input, context) };
+  } catch (error) {
+    return normalizeApiError(error, context);
+  }
+
+  debugLog(`${context} payload`, payload);
+  const data = await reclaimHttpClient.patch<unknown>(
+    "/tasks/batch/archive",
+    payload,
+    { context },
+  );
+  return asMutationResponse(data, { success: true });
+}
+
+export async function batchCompleteTasks(
+  input: TaskBatchIdsInput,
+): Promise<ReclaimMutationResponse> {
+  const context = "batchCompleteTasks";
+  let payload: { ids: number[] };
+
+  try {
+    payload = { ids: normalizeTaskIds(input, context) };
+  } catch (error) {
+    return normalizeApiError(error, context);
+  }
+
+  debugLog(`${context} payload`, payload);
+  const data = await reclaimHttpClient.patch<unknown>(
+    "/tasks/batch/complete",
+    payload,
+    { context },
+  );
+  return asMutationResponse(data, { success: true });
+}
+
+export async function getTaskMinIndex(): Promise<TaskMinIndexResponse> {
+  const context = "getTaskMinIndex";
+  const data = await reclaimHttpClient.get<unknown>("/tasks/min-index", {
+    context,
+  });
+  if (typeof data === "number") {
+    return { minIndex: data };
+  }
+  if (data && typeof data === "object") {
+    return data as TaskMinIndexResponse;
+  }
+  return {};
+}
+
+export async function reindexTasksByDue(): Promise<ReclaimMutationResponse> {
+  const context = "reindexTasksByDue";
+  const data = await reclaimHttpClient.patch<unknown>(
+    "/tasks/reindex-by-due",
+    undefined,
+    { context },
+  );
+  return asMutationResponse(data, { success: true });
+}
+
+export async function reindexTask(
+  taskId: number,
+  index?: number,
+): Promise<ReclaimMutationResponse> {
+  const context = `reindexTask(taskId=${taskId})`;
+  let payload: { index?: number } | undefined;
+
+  try {
+    if (index !== undefined) {
+      if (!Number.isInteger(index) || index < 0) {
+        throw new Error("index must be a non-negative integer.");
+      }
+      payload = { index };
+    }
+  } catch (error) {
+    return normalizeApiError(error, context);
+  }
+
+  debugLog(`${context} payload`, payload);
+  const data = await reclaimHttpClient.patch<unknown>(
+    `/tasks/${taskId}/reindex`,
+    payload,
+    { context },
+  );
+  return asMutationResponse(data, { success: true });
+}
+
+export async function getRecommendedTasks(
+  query: RecommendedTasksQuery = {},
+): Promise<Task[]> {
+  const context = "getRecommendedTasks";
+  const normalizedQuery = normalizeQueryParams({
+    limit: query.limit,
+    offset: query.offset,
+    onDeck: query.onDeck,
+    includeArchived: query.includeArchived,
+  });
+  const data = await reclaimHttpClient.get<unknown>("/recommended-tasks", {
+    context,
+    query: normalizedQuery,
+  });
+
+  if (Array.isArray(data)) {
+    return data as Task[];
+  }
+
+  if (data && typeof data === "object") {
+    const candidate = data as {
+      tasks?: unknown;
+      recommendedTasks?: unknown;
+      data?: unknown;
+    };
+    if (Array.isArray(candidate.tasks)) {
+      return candidate.tasks as Task[];
+    }
+    if (Array.isArray(candidate.recommendedTasks)) {
+      return candidate.recommendedTasks as Task[];
+    }
+    if (Array.isArray(candidate.data)) {
+      return candidate.data as Task[];
+    }
+  }
+
+  return [];
+}
+
+export async function planWorkTask(
+  taskId: number,
+  input: PlannerTaskPlanWorkInput = {},
+  timeZone?: string,
+): Promise<ReclaimMutationResponse> {
+  const context = `planWorkTask(taskId=${taskId})`;
+  let query: Record<string, string | number> | undefined;
+
+  try {
+    if (input.minutes !== undefined) {
+      if (!Number.isInteger(input.minutes) || input.minutes <= 0) {
+        throw new Error("minutes must be a positive integer.");
+      }
+    }
+
+    const resolvedTimeZone =
+      timeZone ??
+      process.env.MCP_DEFAULT_TIMEZONE ??
+      (await fetchAccountTimeZone().catch(() => undefined));
+
+    const end = input.end
+      ? parseDeadline(input.end, { timeZone: resolvedTimeZone })
+      : undefined;
+    query = normalizeQueryParams({
+      minutes: input.minutes,
+      end,
+    }) as Record<string, string | number> | undefined;
+  } catch (error) {
+    return normalizeApiError(error, context);
+  }
+
+  const data = await reclaimHttpClient.post<unknown>(
+    `/planner/plan-work/task/${taskId}`,
+    undefined,
+    {
+      context,
+      query,
+    },
+  );
+  return asMutationResponse(data, { success: true });
+}
+
+export async function restartTask(
+  taskId: number,
+  input: PlannerTaskPlanWorkInput = {},
+  timeZone?: string,
+): Promise<ReclaimMutationResponse> {
+  const context = `restartTask(taskId=${taskId})`;
+  let query: Record<string, string | number> | undefined;
+
+  try {
+    if (input.minutes !== undefined) {
+      if (!Number.isInteger(input.minutes) || input.minutes <= 0) {
+        throw new Error("minutes must be a positive integer.");
+      }
+    }
+
+    const resolvedTimeZone =
+      timeZone ??
+      process.env.MCP_DEFAULT_TIMEZONE ??
+      (await fetchAccountTimeZone().catch(() => undefined));
+
+    const end = input.end
+      ? parseDeadline(input.end, { timeZone: resolvedTimeZone })
+      : undefined;
+    query = normalizeQueryParams({
+      minutes: input.minutes,
+      end,
+    }) as Record<string, string | number> | undefined;
+  } catch (error) {
+    return normalizeApiError(error, context);
+  }
+
+  const data = await reclaimHttpClient.post<unknown>(
+    `/planner/restart/task/${taskId}`,
+    undefined,
+    {
+      context,
+      query,
+    },
+  );
+  return asMutationResponse(data, { success: true });
+}
+
+export async function rescheduleTaskEvent(
+  plannerEventId: PlannerEventId,
+  input: PlannerTaskRescheduleInput = {},
+  timeZone?: string,
+): Promise<ReclaimMutationResponse> {
+  const context = `rescheduleTaskEvent(plannerEventId=${String(plannerEventId)})`;
+  let normalizedPlannerEventId: PlannerEventId;
+  let query: Record<string, string | number> | undefined;
+
+  try {
+    normalizedPlannerEventId = normalizePlannerEventIds(
+      [plannerEventId],
+      context,
+    )[0];
+
+    const resolvedTimeZone =
+      timeZone ??
+      process.env.MCP_DEFAULT_TIMEZONE ??
+      (await fetchAccountTimeZone().catch(() => undefined));
+
+    const aliasEventId = input.plannerEventId ?? input.eventId;
+    const normalizedAliasEventId =
+      aliasEventId === undefined
+        ? undefined
+        : normalizePlannerEventIds([aliasEventId], context)[0];
+
+    query = normalizeQueryParams({
+      plannerEventId: normalizedAliasEventId,
+      at: input.at
+        ? parseDeadline(input.at, { timeZone: resolvedTimeZone })
+        : undefined,
+      from: input.from
+        ? parseDeadline(input.from, { timeZone: resolvedTimeZone })
+        : undefined,
+      to: input.to
+        ? parseDeadline(input.to, { timeZone: resolvedTimeZone })
+        : undefined,
+    }) as Record<string, string | number> | undefined;
+  } catch (error) {
+    return normalizeApiError(error, context);
+  }
+
+  const data = await reclaimHttpClient.post<unknown>(
+    `/planner/reschedule/task/event/${encodeURIComponent(String(normalizedPlannerEventId))}`,
+    undefined,
+    {
+      context,
+      query,
+    },
+  );
+  return asMutationResponse(data, { success: true });
+}
+
+export async function bulkRescheduleTaskEvents(
+  input: PlannerTaskBulkRescheduleInput,
+  timeZone?: string,
+): Promise<ReclaimMutationResponse> {
+  const context = "bulkRescheduleTaskEvents";
+  let query: Record<string, string | number | (string | number)[]> | undefined;
+
+  try {
+    const eventIds = normalizePlannerEventIds(input.plannerEventIds, context);
+    const resolvedTimeZone =
+      timeZone ??
+      process.env.MCP_DEFAULT_TIMEZONE ??
+      (await fetchAccountTimeZone().catch(() => undefined));
+
+    query = normalizeQueryParams({
+      eventId: eventIds,
+      at: input.at
+        ? parseDeadline(input.at, { timeZone: resolvedTimeZone })
+        : undefined,
+      from: input.from
+        ? parseDeadline(input.from, { timeZone: resolvedTimeZone })
+        : undefined,
+      to: input.to
+        ? parseDeadline(input.to, { timeZone: resolvedTimeZone })
+        : undefined,
+    }) as Record<string, string | number | (string | number)[]> | undefined;
+  } catch (error) {
+    return normalizeApiError(error, context);
+  }
+
+  const data = await reclaimHttpClient.post<unknown>(
+    "/planner/task/reschedule/bulk",
+    undefined,
+    {
+      context,
+      query,
+    },
+  );
+  return asMutationResponse(data, { success: true });
 }
 
 /**

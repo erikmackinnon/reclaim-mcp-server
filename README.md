@@ -16,10 +16,10 @@ This repository is a fork of `jj3ny/reclaim-mcp-server`, originally authored by 
 - **“No chunking / exact duration” support** via `lockChunkSizeToDuration`
 - **Timezone-safe local timestamps**
   - If you pass a local timestamp without an offset (e.g. `2026-01-05T08:00:00`), it’s interpreted in:
-    1) the tool `timeZone` argument, else
-    2) `MCP_DEFAULT_TIMEZONE`, else
-    3) your **Reclaim account timezone** (fetched from `/users/current`), else
-    4) the server machine timezone
+    1. the tool `timeZone` argument, else
+    2. `MCP_DEFAULT_TIMEZONE`, else
+    3. your **Reclaim account timezone** (fetched from `/users/current`), else
+    4. the server machine timezone
 - HTTP CORS allowlist + session/stateless modes
 
 ## Requirements
@@ -145,8 +145,20 @@ Use either:
 - `reclaim_get_task_defaults`
 - `reclaim_list_tasks`
 - `reclaim_get_task`
+- `reclaim_get_task_min_index`
+- `reclaim_list_recommended_tasks`
 - `reclaim_create_task`
 - `reclaim_update_task`
+- `reclaim_batch_update_tasks`
+- `reclaim_batch_delete_tasks` (destructive bulk action)
+- `reclaim_batch_archive_tasks` (bulk lifecycle mutation)
+- `reclaim_batch_complete_tasks` (bulk lifecycle mutation)
+- `reclaim_reindex_tasks_by_due` (bulk scheduling mutation)
+- `reclaim_reindex_task`
+- `reclaim_plan_work`
+- `reclaim_restart_task`
+- `reclaim_reschedule_task_event`
+- `reclaim_bulk_reschedule_task_events` (bulk scheduling mutation)
 - `reclaim_mark_complete`
 - `reclaim_mark_incomplete`
 - `reclaim_delete_task`
@@ -194,10 +206,10 @@ reclaim new task for monday 8am do bigTask for theBoss 60 mins exactly no chunk
 
 Time zone selection order for offset-less timestamps:
 
-1) tool argument `timeZone` / `timezone`
-2) `MCP_DEFAULT_TIMEZONE`
-3) your Reclaim account time zone (fetched from `/users/current`)
-4) the server machine time zone
+1. tool argument `timeZone` / `timezone`
+2. `MCP_DEFAULT_TIMEZONE`
+3. your Reclaim account time zone (fetched from `/users/current`)
+4. the server machine time zone
 
 ## Known issues (LLM behavior)
 
@@ -205,18 +217,18 @@ Time zone selection order for offset-less timestamps:
 
 ## Configuration
 
-| Variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `RECLAIM_API_KEY` | yes | - | Reclaim API token |
-| `MCP_TRANSPORT` | no | `stdio` | `stdio` or `http` |
-| `MCP_DEFAULT_TIMEZONE` | no | Reclaim timezone / machine TZ | IANA timezone for local timestamps (e.g. `America/Los_Angeles`) |
-| `MCP_HTTP_HOST` | no | `127.0.0.1` | HTTP bind host |
-| `MCP_HTTP_PORT` | no | `3000` | HTTP port |
-| `MCP_HTTP_PATH` | no | `/mcp` | HTTP path |
-| `MCP_HTTP_STATELESS` | no | `false` | Disable session storage |
-| `MCP_HTTP_ALLOWED_ORIGINS` | no | `http://localhost,http://127.0.0.1` | CORS allowlist |
-| `MCP_HTTP_ALLOW_ANY_ORIGIN` | no | `false` | Set `true` to allow all Origins |
-| `RECLAIM_DEBUG` | no | `false` | Log request payloads and responses for troubleshooting |
+| Variable                    | Required | Default                             | Description                                                     |
+| --------------------------- | -------- | ----------------------------------- | --------------------------------------------------------------- |
+| `RECLAIM_API_KEY`           | yes      | -                                   | Reclaim API token                                               |
+| `MCP_TRANSPORT`             | no       | `stdio`                             | `stdio` or `http`                                               |
+| `MCP_DEFAULT_TIMEZONE`      | no       | Reclaim timezone / machine TZ       | IANA timezone for local timestamps (e.g. `America/Los_Angeles`) |
+| `MCP_HTTP_HOST`             | no       | `127.0.0.1`                         | HTTP bind host                                                  |
+| `MCP_HTTP_PORT`             | no       | `3000`                              | HTTP port                                                       |
+| `MCP_HTTP_PATH`             | no       | `/mcp`                              | HTTP path                                                       |
+| `MCP_HTTP_STATELESS`        | no       | `false`                             | Disable session storage                                         |
+| `MCP_HTTP_ALLOWED_ORIGINS`  | no       | `http://localhost,http://127.0.0.1` | CORS allowlist                                                  |
+| `MCP_HTTP_ALLOW_ANY_ORIGIN` | no       | `false`                             | Set `true` to allow all Origins                                 |
+| `RECLAIM_DEBUG`             | no       | `false`                             | Log request payloads and responses for troubleshooting          |
 
 ## Troubleshooting
 
