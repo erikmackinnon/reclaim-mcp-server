@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { expectNormalizedReclaimError } from "../../../test/harness/assertions.js";
 import { reclaim } from "../../core/http.js";
 import {
   addTimeToTask,
@@ -9,24 +10,8 @@ import {
   logWorkForTask,
   updateTask,
 } from "./client.js";
-import { ReclaimError } from "../../../types/reclaim.js";
 
 const ORIGINAL_API_KEY = process.env.RECLAIM_API_KEY;
-
-function assertNormalizedError(
-  error: unknown,
-  context: string,
-  fragment: string,
-): void {
-  expect(error).toBeInstanceOf(ReclaimError);
-  const reclaimError = error as ReclaimError;
-  expect(reclaimError.message).toContain(`API Call Failed (${context}):`);
-  expect(reclaimError.message).toContain(fragment);
-  expect(reclaimError.status).toBeUndefined();
-  expect(reclaimError.detail).toMatchObject({
-    stack: expect.any(String),
-  });
-}
 
 describe("task client error normalization", () => {
   beforeEach(() => {
@@ -50,11 +35,14 @@ describe("task client error normalization", () => {
       await listTasks();
       throw new Error("Expected listTasks to throw");
     } catch (error: unknown) {
-      assertNormalizedError(
-        error,
-        "listTasks",
-        "RECLAIM_API_KEY environment variable is not set",
-      );
+      expectNormalizedReclaimError(error, {
+        context: "listTasks",
+        messageFragment: "RECLAIM_API_KEY environment variable is not set",
+        status: undefined,
+        detailMatcher: expect.objectContaining({
+          stack: expect.any(String),
+        }),
+      });
     }
 
     expect(requestSpy).not.toHaveBeenCalled();
@@ -65,7 +53,14 @@ describe("task client error normalization", () => {
       await createTask({ title: "Bad due", due: "not-a-date" });
       throw new Error("Expected createTask to throw");
     } catch (error: unknown) {
-      assertNormalizedError(error, "createTask", 'Invalid date format: "not-a-date"');
+      expectNormalizedReclaimError(error, {
+        context: "createTask",
+        messageFragment: 'Invalid date format: "not-a-date"',
+        status: undefined,
+        detailMatcher: expect.objectContaining({
+          stack: expect.any(String),
+        }),
+      });
     }
   });
 
@@ -74,11 +69,14 @@ describe("task client error normalization", () => {
       await createTaskAtTime("bad-start-time", { title: "At time task" });
       throw new Error("Expected createTaskAtTime to throw");
     } catch (error: unknown) {
-      assertNormalizedError(
-        error,
-        "createTaskAtTime(startTime=bad-start-time)",
-        'Invalid date format: "bad-start-time"',
-      );
+      expectNormalizedReclaimError(error, {
+        context: "createTaskAtTime(startTime=bad-start-time)",
+        messageFragment: 'Invalid date format: "bad-start-time"',
+        status: undefined,
+        detailMatcher: expect.objectContaining({
+          stack: expect.any(String),
+        }),
+      });
     }
   });
 
@@ -87,11 +85,14 @@ describe("task client error normalization", () => {
       await updateTask(42, { deadline: "not-a-date" });
       throw new Error("Expected updateTask to throw");
     } catch (error: unknown) {
-      assertNormalizedError(
-        error,
-        "updateTask(taskId=42)",
-        'Invalid date format: "not-a-date"',
-      );
+      expectNormalizedReclaimError(error, {
+        context: "updateTask(taskId=42)",
+        messageFragment: 'Invalid date format: "not-a-date"',
+        status: undefined,
+        detailMatcher: expect.objectContaining({
+          stack: expect.any(String),
+        }),
+      });
     }
   });
 
@@ -100,11 +101,14 @@ describe("task client error normalization", () => {
       await addTimeToTask(123, 0);
       throw new Error("Expected addTimeToTask to throw");
     } catch (error: unknown) {
-      assertNormalizedError(
-        error,
-        "addTimeToTask(taskId=123, minutes=0)",
-        "Minutes must be positive to add time.",
-      );
+      expectNormalizedReclaimError(error, {
+        context: "addTimeToTask(taskId=123, minutes=0)",
+        messageFragment: "Minutes must be positive to add time.",
+        status: undefined,
+        detailMatcher: expect.objectContaining({
+          stack: expect.any(String),
+        }),
+      });
     }
   });
 
@@ -113,11 +117,14 @@ describe("task client error normalization", () => {
       await logWorkForTask(123, -15);
       throw new Error("Expected logWorkForTask to throw");
     } catch (error: unknown) {
-      assertNormalizedError(
-        error,
-        "logWorkForTask(taskId=123, minutes=-15, end=now)",
-        "Minutes must be positive to log work.",
-      );
+      expectNormalizedReclaimError(error, {
+        context: "logWorkForTask(taskId=123, minutes=-15, end=now)",
+        messageFragment: "Minutes must be positive to log work.",
+        status: undefined,
+        detailMatcher: expect.objectContaining({
+          stack: expect.any(String),
+        }),
+      });
     }
   });
 });
