@@ -177,6 +177,10 @@ export const reclaimHttpClient = {
     return request<T>({ method: "POST", url, data }, options);
   },
 
+  put<T>(url: string, data: unknown, options: RequestOptions): Promise<T> {
+    return request<T>({ method: "PUT", url, data }, options);
+  },
+
   patch<T>(url: string, data: unknown, options: RequestOptions): Promise<T> {
     return request<T>({ method: "PATCH", url, data }, options);
   },

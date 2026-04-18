@@ -135,6 +135,55 @@ export interface ReclaimMutationResponse {
   [key: string]: unknown;
 }
 
+export type ReclaimQueryScalar = string | number | boolean | null;
+export type ReclaimQueryValue = ReclaimQueryScalar | ReclaimQueryScalar[];
+export type ReclaimQueryParams = Record<string, ReclaimQueryValue | undefined>;
+
+export interface Habit extends Task {
+  type?: "HABIT" | "TASK";
+  recurrenceRule?: string;
+  nextOccurrenceAt?: string;
+  [key: string]: any;
+}
+
+export interface HabitInputData extends TaskInputData {
+  recurrenceRule?: string;
+  frequency?: string;
+  start?: string;
+  end?: string;
+  startTime?: string;
+  endTime?: string;
+  [key: string]: any;
+}
+
+export interface HabitTemplate {
+  id?: number | string;
+  title?: string;
+  name?: string;
+  description?: string;
+  [key: string]: any;
+}
+
+export interface HabitTemplateInputData {
+  title?: string;
+  name?: string;
+  description?: string;
+  recurrenceRule?: string;
+  [key: string]: any;
+}
+
+export interface DailyHabit extends Habit {
+  date?: string;
+  completed?: boolean;
+  [key: string]: any;
+}
+
+export interface DailyHabitInputData extends HabitInputData {
+  date?: string;
+  completed?: boolean;
+  [key: string]: any;
+}
+
 /**
  * Custom error class for Reclaim API specific errors.
  * Includes optional status code and detailed error response.

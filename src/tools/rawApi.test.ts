@@ -88,6 +88,22 @@ describe("registerRawApiTool", () => {
     expect(extractText(result)).toContain("POST");
   });
 
+  it("blocks typed endpoints from the raw fallback surface", async () => {
+    const spy = new ToolSpy();
+    registerRawApiTool(spy as unknown as McpServer);
+
+    const handler = spy.getHandler("reclaim_call_api");
+    const result = await handler({
+      method: "GET",
+      path: "/smart-habits/detect",
+    });
+
+    expect(result.isError).toBe(true);
+    expect(extractText(result)).toContain(
+      "typed and not available via reclaim_call_api",
+    );
+  });
+
   it("returns endpoint metadata and destructive annotation for destructive raw calls", async () => {
     const spy = new ToolSpy();
     registerRawApiTool(spy as unknown as McpServer);
@@ -120,8 +136,8 @@ describe("registerRawApiTool", () => {
 
     const handler = spy.getHandler("reclaim_call_api");
     const result = await handler({
-      method: "GET",
-      path: "/smart-habits/detect",
+      method: "DELETE",
+      path: "/tasks/batch",
       query: {
         nested: { disallowed: true },
       },

@@ -8,6 +8,7 @@ import {
 import { createMcpServerHarness } from "../../test/harness/mcp-server.js";
 import { DOMAIN_REGISTRARS, registerDomainRegistrars } from "./index.js";
 import { curatedFallbackRegistrar } from "./curatedFallback.js";
+import { habitDomainRegistrar } from "./habits.js";
 import { taskDomainRegistrar } from "./tasks.js";
 
 describe("domain registrars", () => {
@@ -85,10 +86,17 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(27);
+    expect(harness.tools.length).toBe(54);
     expect(harness.resources.length).toBe(6);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
+    );
+    expect(harness.tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining([
+        "reclaim_create_habit",
+        "reclaim_detect_habits",
+        "reclaim_list_daily_habits",
+      ]),
     );
     expect(harness.resources.map((resource) => resource.name)).toEqual(
       expect.arrayContaining([
@@ -105,7 +113,61 @@ describe("domain registrars", () => {
     const domains = DOMAIN_REGISTRARS.map((registrar) => registrar.domain);
     expect(domains.length).toBe(new Set(domains).size);
     expect(domains).toContain("tasks");
+    expect(domains).toContain("habits");
     expect(domains).toContain("curated_fallback");
+  });
+
+  it("registers habits domain tools via habits registrar", () => {
+    const { harness, server } = createMcpServerHarness();
+
+    habitDomainRegistrar.register(server);
+
+    expect(new Set(harness.tools.map((tool) => tool.name))).toEqual(
+      new Set([
+        "reclaim_list_habits",
+        "reclaim_create_habit",
+        "reclaim_get_habit",
+        "reclaim_update_habit",
+        "reclaim_delete_habit",
+        "reclaim_detect_habits",
+        "reclaim_convert_habits_to_single_instances",
+        "reclaim_share_habit",
+        "reclaim_get_shared_habit",
+        "reclaim_get_shared_habit_v2",
+        "reclaim_get_habit_template",
+        "reclaim_list_habit_templates",
+        "reclaim_create_habit_from_template",
+        "reclaim_list_smart_habit_templates",
+        "reclaim_create_smart_habit_template",
+        "reclaim_get_smart_habit_template",
+        "reclaim_update_smart_habit_template",
+        "reclaim_delete_smart_habit_template",
+        "reclaim_list_daily_habits",
+        "reclaim_create_daily_habit",
+        "reclaim_get_daily_habit",
+        "reclaim_replace_daily_habit",
+        "reclaim_update_daily_habit",
+        "reclaim_delete_daily_habit",
+        "reclaim_get_assist_habit_template",
+        "reclaim_create_assist_habit_template",
+        "reclaim_list_assist_habit_templates",
+      ]),
+    );
+
+    const listHabits = findRegisteredTool(harness.tools, "reclaim_list_habits");
+    const deleteDailyHabit = findRegisteredTool(
+      harness.tools,
+      "reclaim_delete_daily_habit",
+    );
+    expectToolAnnotations(listHabits, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(deleteDailyHabit, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
   });
 
   it("registers curated fallback domain tool and resources", () => {
