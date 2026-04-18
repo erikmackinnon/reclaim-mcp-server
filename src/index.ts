@@ -5,45 +5,14 @@
 
 import express from "express";
 import { randomUUID } from "node:crypto";
-import { createRequire } from "node:module";
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
-import { registerTaskResources } from "./resources/tasks.js";
-import { registerTaskActionTools } from "./tools/taskActions.js";
-import { registerTaskCrudTools } from "./tools/taskCrud.js";
 import { fetchAccountTimeZone } from "./reclaim-client.js";
+import { createServer, serverInfo } from "./server/bootstrap.js";
 import "dotenv/config"; // Load environment variables from .env file
-
-// --- Server Information ---
-// Read version from package.json (more robust than hardcoding)
-const require = createRequire(import.meta.url);
-let pkg: any;
-try {
-  // Adjust path if needed, assuming package.json is one level up from src/
-  pkg = require("../package.json");
-} catch (e) {
-  console.error("Could not read package.json, using default server info.", e);
-  pkg = {}; // Default to empty object if read fails
-}
-
-const publisher =
-  typeof pkg.author === "string"
-    ? pkg.author
-    : (pkg.author?.name as string | undefined);
-
-// Define the structure expected for server info (matches McpServer constructor)
-const serverInfo = {
-  name: pkg.name || "reclaim-mcp-server",
-  version: pkg.version || "0.0.0", // Fallback version
-  publisher: publisher || "Unknown Publisher",
-  homepage: pkg.homepage || undefined,
-  supportUrl: pkg.bugs?.url || undefined,
-  description: pkg.description || "MCP Server for Reclaim.ai Tasks",
-};
 
 function ensureApiKey(): void {
   if (!process.env.RECLAIM_API_KEY) {
@@ -56,14 +25,6 @@ function ensureApiKey(): void {
     console.error("Example: RECLAIM_API_KEY=your_api_token_here");
     process.exit(1); // Exit immediately if token is missing.
   }
-}
-
-function createServer(): McpServer {
-  const server = new McpServer(serverInfo);
-  registerTaskActionTools(server);
-  registerTaskCrudTools(server);
-  registerTaskResources(server);
-  return server;
 }
 
 function normalizeHttpPath(pathValue: string): string {

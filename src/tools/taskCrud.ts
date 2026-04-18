@@ -5,6 +5,19 @@
 import { z } from "zod";
 
 import * as api from "../reclaim-client.js";
+import {
+  isoDateOrDateTimeSchema,
+  isoDateTimeSchema,
+  numericIdSchema,
+  resolveTimeZoneAlias,
+  stringIdSchema,
+  timeZoneInputSchemas,
+} from "../server/schemas/shared.js";
+import {
+  buildToolDefinition,
+  reclaimToolName,
+  toolAnnotations,
+} from "../server/tool-metadata.js";
 import { wrapApiCall } from "../utils.js";
 
 import type { TaskInputData } from "../types/reclaim.js";
@@ -21,18 +34,6 @@ type TaskToolInput = TaskInputData & {
 };
 
 const CHUNK_MINUTES = 15;
-const DATE_ONLY_SCHEMA = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
-  message: "Date must be in YYYY-MM-DD format.",
-});
-const DATE_TIME_SCHEMA = z
-  .string()
-  .regex(
-    /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:[zZ]|[+-]\d{2}:\d{2})?$/,
-    {
-      message:
-        "Date/time must be ISO 8601 (YYYY-MM-DDTHH:mm with optional seconds and offset).",
-    },
-  );
 
 function minutesToChunks(value: number, field: string): number {
   if (value % CHUNK_MINUTES !== 0) {
@@ -95,7 +96,8 @@ function normalizeChunkInputs(input: TaskToolInput): TaskInputData {
  * @param server - The McpServer instance to register tools against.
  */
 export function registerTaskCrudTools(server: McpServer): void {
-  // --- Zod Schema for Task Properties (used in both create and update) ---
+  const timeZoneSchemas = timeZoneInputSchemas();
+
   const taskPropertiesSchema = {
     title: z.string().min(1, "Title cannot be empty."),
     notes: z.string().optional(),
@@ -166,15 +168,16 @@ export function registerTaskCrudTools(server: McpServer): void {
       .describe(
         "(Advanced) Maximum chunk size in 15-minute chunks (NOT minutes). Prefer maxDurationMinutes.",
       ),
-    onDeck: z.boolean().optional(), // Prioritize task
+    onDeck: z.boolean().optional(),
     alwaysPrivate: z
       .boolean()
       .optional()
       .describe("If true, always mark task events as private on the calendar."),
-    timeSchemeId: z
-      .string()
+    timeSchemeId: stringIdSchema("timeSchemeId")
       .optional()
-      .describe("Time scheme ID for scheduling rules. Defaults to account task settings."),
+      .describe(
+        "Time scheme ID for scheduling rules. Defaults to account task settings.",
+      ),
     status: z
       .enum([
         "NEW",
@@ -185,50 +188,32 @@ export function registerTaskCrudTools(server: McpServer): void {
         "ARCHIVED",
       ])
       .optional(),
-    // Deadline: number of days from now OR ISO datetime string OR YYYY-MM-DD date string
     deadline: z
       .union([
         z.number().int().positive("Deadline days must be a positive integer."),
-        DATE_TIME_SCHEMA,
-        DATE_ONLY_SCHEMA,
+        isoDateOrDateTimeSchema,
       ])
       .optional(),
-    // Due: explicit date/time for the task
-    due: z
-      .union([DATE_TIME_SCHEMA, DATE_ONLY_SCHEMA])
+    due: isoDateOrDateTimeSchema
       .optional()
       .describe(
         "Explicit due date/time (ISO 8601 or YYYY-MM-DD). Prefer deadline for days-from-now inputs.",
       ),
-    // StartTime: ISO datetime string (supports timezone offsets)
-    startTime: z
-      .string()
-      .regex(
-        /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:[zZ]|[+-]\d{2}:\d{2})?$/,
-        {
-          message:
-            "startTime must be ISO 8601 (YYYY-MM-DDTHH:mm with optional seconds and offset).",
-        },
-      )
-      .optional(),
-    timeZone: z
-      .string()
+    startTime: isoDateTimeSchema
       .optional()
       .describe(
-        "IANA time zone used to interpret date/time inputs without offsets (e.g., America/Los_Angeles).",
+        "ISO 8601 datetime with optional offset. Used by reclaim_create_task for /tasks/at-time behavior.",
       ),
-    timezone: z.string().optional().describe("Alias for timeZone."),
-    // SnoozeUntil: number of days from now OR ISO datetime string OR YYYY-MM-DD date string
+    timeZone: timeZoneSchemas.timeZone,
+    timezone: timeZoneSchemas.timezone,
     snoozeUntil: z
       .union([
         z.number().int().positive("Snooze days must be a positive integer."),
-        DATE_TIME_SCHEMA,
-        DATE_ONLY_SCHEMA,
+        isoDateOrDateTimeSchema,
       ])
       .optional(),
     eventColor: z
       .enum([
-        // Based on Reclaim's standard colors
         "NONE",
         "LAVENDER",
         "SAGE",
@@ -245,19 +230,14 @@ export function registerTaskCrudTools(server: McpServer): void {
       .optional(),
   };
 
-  // --- CREATE Task Tool ---
   server.registerTool(
-    "reclaim_create_task",
-    {
+    reclaimToolName("create_task"),
+    buildToolDefinition({
       title: "Create Reclaim Task",
       description: "Create a new task in Reclaim.ai.",
-      // Schema for create: title is required, other properties are optional
       inputSchema: taskPropertiesSchema,
-      annotations: {
-        idempotentHint: false,
-        destructiveHint: false,
-      },
-    },
+      annotations: toolAnnotations({ idempotent: false }),
+    }),
     async (params) => {
       const { startTime, timeZone, timezone, ...taskData } =
         params as TaskToolInput;
@@ -267,9 +247,8 @@ export function registerTaskCrudTools(server: McpServer): void {
       } catch (error) {
         return wrapApiCall(Promise.reject(error));
       }
-      const resolvedTimeZone = timeZone ?? timezone;
-      // The 'params' object directly matches the schema structure
-      // Cast to TaskInputData for the API client (which handles 'deadline'/'due' conversion)
+      const resolvedTimeZone = resolveTimeZoneAlias(timeZone, timezone);
+
       if (typeof startTime === "string" && startTime.length > 0) {
         return wrapApiCall(
           api.createTaskAtTime(startTime, normalized, resolvedTimeZone),
@@ -280,16 +259,13 @@ export function registerTaskCrudTools(server: McpServer): void {
     },
   );
 
-  // --- UPDATE Task Tool ---
   server.registerTool(
-    "reclaim_update_task",
-    {
+    reclaimToolName("update_task"),
+    buildToolDefinition({
       title: "Update Reclaim Task",
       description: "Update one or more fields on an existing Reclaim.ai task.",
-      // Schema for update: requires taskId, all other properties are optional
       inputSchema: {
-        taskId: z.number().int().positive("Task ID must be a positive integer."),
-        // Make all properties from the base schema optional for update
+        taskId: numericIdSchema("Task ID"),
         title: taskPropertiesSchema.title.optional(),
         notes: taskPropertiesSchema.notes,
         eventCategory: taskPropertiesSchema.eventCategory,
@@ -313,18 +289,14 @@ export function registerTaskCrudTools(server: McpServer): void {
         snoozeUntil: taskPropertiesSchema.snoozeUntil,
         eventColor: taskPropertiesSchema.eventColor,
       },
-      annotations: {
-        idempotentHint: true,
-        destructiveHint: false,
-      },
-    },
+      annotations: toolAnnotations({ idempotent: true }),
+    }),
     async (params) => {
-      // Extract taskId, the rest are the update fields
       const { taskId, timeZone, timezone, ...updateData } =
         params as TaskToolInput & {
           taskId: number;
         };
-      const resolvedTimeZone = timeZone ?? timezone;
+      const resolvedTimeZone = resolveTimeZoneAlias(timeZone, timezone);
 
       let normalized: TaskInputData;
       try {
@@ -333,9 +305,7 @@ export function registerTaskCrudTools(server: McpServer): void {
         return wrapApiCall(Promise.reject(error));
       }
 
-      // Ensure we have at least one property to update besides taskId
       if (Object.keys(normalized).length === 0) {
-        // Throw an error that wrapApiCall will catch and format
         return wrapApiCall(
           Promise.reject(
             new Error(
@@ -345,7 +315,6 @@ export function registerTaskCrudTools(server: McpServer): void {
         );
       }
 
-      // Cast updateData to TaskInputData for the API client
       return wrapApiCall(api.updateTask(taskId, normalized, resolvedTimeZone));
     },
   );
