@@ -137,7 +137,7 @@ describe("registerRawApiTool", () => {
     const handler = spy.getHandler("reclaim_call_api");
     const result = await handler({
       method: "DELETE",
-      path: "/tasks/batch",
+      path: "/planner/policy/task/101",
       query: {
         nested: { disallowed: true },
       },
