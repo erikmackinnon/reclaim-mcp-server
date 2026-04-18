@@ -9112,6 +9112,18 @@ function matchesPathTemplate(template: string, requestPath: string): boolean {
   });
 }
 
+function pathTemplateSpecificityScore(template: string): number {
+  return splitPathSegments(template).reduce((score, segment) => {
+    if (segment === "*") {
+      return score;
+    }
+    if (segment.startsWith("{") && segment.endsWith("}")) {
+      return score + 1;
+    }
+    return score + 2;
+  }, 0);
+}
+
 export function listEndpointRegistry(): readonly EndpointRegistryEntry[] {
   return ENDPOINT_REGISTRY;
 }
@@ -9127,13 +9139,31 @@ export function matchEndpointRequest(
   method: HttpMethod,
   requestPath: string,
 ): EndpointRegistryEntry | undefined {
+  let bestMatch: EndpointRegistryEntry | undefined;
+  let bestScore = -1;
+
   for (const entry of ENDPOINT_REGISTRY) {
     if (entry.method !== method) {
       continue;
     }
-    if (matchesPathTemplate(entry.pathTemplate, requestPath)) {
-      return entry;
+    if (!matchesPathTemplate(entry.pathTemplate, requestPath)) {
+      continue;
+    }
+
+    const score = pathTemplateSpecificityScore(entry.pathTemplate);
+    if (score > bestScore) {
+      bestMatch = entry;
+      bestScore = score;
     }
   }
-  return undefined;
+
+  return bestMatch;
+}
+
+export function listEndpointMatchesForPath(
+  requestPath: string,
+): readonly EndpointRegistryEntry[] {
+  return ENDPOINT_REGISTRY.filter((entry) =>
+    matchesPathTemplate(entry.pathTemplate, requestPath),
+  );
 }

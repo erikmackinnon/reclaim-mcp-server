@@ -134,4 +134,10 @@ describe("endpoint registry coverage", () => {
     expect(debugRoute?.mode).toBe("excluded");
     expect(debugRoute?.exclusionCategory).toBe("staff");
   });
+
+  it("prefers exact/static templates over parameter templates for request matching", () => {
+    const batchDelete = matchEndpointRequest("DELETE", "/tasks/batch");
+    expect(batchDelete?.pathTemplate).toBe("/tasks/batch");
+    expect(batchDelete?.mode).toBe("raw");
+  });
 });

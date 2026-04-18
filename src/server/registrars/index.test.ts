@@ -7,6 +7,7 @@ import {
 } from "../../test/harness/assertions.js";
 import { createMcpServerHarness } from "../../test/harness/mcp-server.js";
 import { DOMAIN_REGISTRARS, registerDomainRegistrars } from "./index.js";
+import { curatedFallbackRegistrar } from "./curatedFallback.js";
 import { taskDomainRegistrar } from "./tasks.js";
 
 describe("domain registrars", () => {
@@ -56,8 +57,19 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(14);
-    expect(harness.resources.length).toBe(2);
+    expect(harness.tools.length).toBe(15);
+    expect(harness.resources.length).toBe(6);
+    expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
+      "reclaim_call_api",
+    );
+    expect(harness.resources.map((resource) => resource.name)).toEqual(
+      expect.arrayContaining([
+        "reclaim_current_user_profile",
+        "reclaim_daily_habits",
+        "reclaim_focus_settings_current",
+        "reclaim_team_current",
+      ]),
+    );
     expectReclaimToolNames(harness.tools);
   });
 
@@ -65,5 +77,22 @@ describe("domain registrars", () => {
     const domains = DOMAIN_REGISTRARS.map((registrar) => registrar.domain);
     expect(domains.length).toBe(new Set(domains).size);
     expect(domains).toContain("tasks");
+    expect(domains).toContain("curated_fallback");
+  });
+
+  it("registers curated fallback domain tool and resources", () => {
+    const { harness, server } = createMcpServerHarness();
+
+    curatedFallbackRegistrar.register(server);
+
+    expect(harness.tools.map((tool) => tool.name)).toEqual(["reclaim_call_api"]);
+    expect(new Set(harness.resources.map((resource) => resource.name))).toEqual(
+      new Set([
+        "reclaim_current_user_profile",
+        "reclaim_daily_habits",
+        "reclaim_focus_settings_current",
+        "reclaim_team_current",
+      ]),
+    );
   });
 });
