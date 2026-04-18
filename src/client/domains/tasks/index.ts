@@ -1,11 +1,3 @@
-/**
- * Compatibility facade for the legacy task-centric client module.
- *
- * WU-02 extracts transport logic into `client/core/http` and task behavior into
- * `client/domains/tasks`, while preserving this module's public API.
- */
-
-export { reclaim } from "./client/core/http.js";
 export {
   addTimeToTask,
   clearTaskExceptions,
@@ -26,4 +18,4 @@ export {
   startTaskTimer,
   stopTaskTimer,
   updateTask,
-} from "./client/domains/tasks/index.js";
+} from "./client.js";
