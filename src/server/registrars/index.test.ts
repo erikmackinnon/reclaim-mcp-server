@@ -97,6 +97,12 @@ describe("domain registrars", () => {
 
     expect(harness.tools.length).toBe(274);
     expect(harness.resources.length).toBe(6);
+    expect(new Set(harness.tools.map((tool) => tool.name)).size).toBe(
+      harness.tools.length,
+    );
+    expect(
+      new Set(harness.resources.map((resource) => resource.name)).size,
+    ).toBe(harness.resources.length);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
     );

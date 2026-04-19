@@ -215,4 +215,43 @@ describe("registerRawApiTool", () => {
     expect(result.isError).toBe(true);
     expect(extractText(result)).toContain("no nested objects");
   });
+
+  it("rejects reserved query keys that could mutate object prototypes", async () => {
+    const spy = new ToolSpy();
+    registerRawApiTool(spy as unknown as McpServer);
+
+    const handler = spy.getHandler("reclaim_call_api");
+    const result = await handler({
+      method: "DELETE",
+      path: "/planner/policy/task/101",
+      query: {
+        ["__proto__"]: "pollute",
+      },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(extractText(result)).toContain("not allowed for security reasons");
+  });
+
+  it("rejects reserved body keys that could mutate object prototypes", async () => {
+    const spy = new ToolSpy();
+    registerRawApiTool(spy as unknown as McpServer);
+
+    const handler = spy.getHandler("reclaim_call_api");
+    const result = await handler({
+      method: "PUT",
+      path: "/tasks/123",
+      body: {
+        title: "safe",
+        constructor: {
+          prototype: {
+            polluted: true,
+          },
+        },
+      },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(extractText(result)).toContain("not allowed for security reasons");
+  });
 });

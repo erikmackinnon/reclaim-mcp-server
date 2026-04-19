@@ -206,6 +206,28 @@ describe("endpoint registry coverage", () => {
     expect(createDefaultPolicies?.safety.destructive).toBe(false);
   });
 
+  it("keeps allowedMethods metadata aligned with sibling entries", () => {
+    for (const entry of ENDPOINT_REGISTRY) {
+      expect(entry.allowedMethods).toContain(entry.method);
+
+      for (const method of entry.allowedMethods) {
+        const sibling = getEndpointBySignature(method, entry.pathTemplate);
+        expect(sibling).toBeDefined();
+        expect(new Set(sibling?.allowedMethods)).toEqual(
+          new Set(entry.allowedMethods),
+        );
+      }
+    }
+  });
+
+  it("prefers exact literal path templates over parameter templates", () => {
+    const batchMatch = matchEndpointRequest("PATCH", "/tasks/batch");
+    const idMatch = matchEndpointRequest("PATCH", "/tasks/42");
+
+    expect(batchMatch?.pathTemplate).toBe("/tasks/batch");
+    expect(idMatch?.pathTemplate).toBe("/tasks/{id}");
+  });
+
   it("classifies analytics/changelog/assist WU-13 surfaces as typed while keeping high-risk assist raw", () => {
     const userAnalytics = getEndpointBySignature("GET", "/analytics/user");
     expect(userAnalytics?.mode).toBe("typed");

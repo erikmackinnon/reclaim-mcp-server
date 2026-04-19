@@ -66,6 +66,11 @@ const MAX_BODY_DEPTH = 10;
 const MAX_BODY_NODES = 3000;
 const MAX_OBJECT_KEYS = 300;
 const MAX_KEY_LENGTH = 120;
+const FORBIDDEN_OBJECT_KEYS = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -81,6 +86,14 @@ function isQueryScalar(value: unknown): value is QueryScalar {
   }
 
   return typeof value === "string" || typeof value === "boolean";
+}
+
+function assertAllowedObjectKey(key: string, location: "query" | "body"): void {
+  if (FORBIDDEN_OBJECT_KEYS.has(key.toLowerCase())) {
+    throw new Error(
+      `${location} key '${key}' is not allowed for security reasons.`,
+    );
+  }
 }
 
 function normalizePath(inputPath: string): string {
@@ -142,6 +155,7 @@ function validateQueryInput(input: unknown): QueryInput | undefined {
         `query key '${key}' is invalid. Keys must be 1-${MAX_KEY_LENGTH} characters.`,
       );
     }
+    assertAllowedObjectKey(key, "query");
 
     if (rawValue === undefined) {
       continue;
@@ -233,6 +247,7 @@ function validateBodyNode(
           `body key '${key}' is invalid. Keys must be 1-${MAX_KEY_LENGTH} characters.`,
         );
       }
+      assertAllowedObjectKey(key, "body");
       validateBodyNode(nestedValue, depth + 1, state);
     }
     return;
