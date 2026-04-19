@@ -76,6 +76,10 @@ describe("endpoint registry coverage", () => {
     );
     expect(smartMeetingAvailability?.mode).toBe("typed");
     expect(smartMeetingAvailability?.isExcluded).toBe(false);
+
+    const oneOnOneList = getEndpointBySignature("GET", "/oneOnOne");
+    expect(oneOnOneList?.mode).toBe("typed");
+    expect(oneOnOneList?.isExcluded).toBe(false);
   });
 
   it("excludes internal migration and feature-toggle/debug endpoints", () => {

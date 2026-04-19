@@ -9,6 +9,7 @@ import { createMcpServerHarness } from "../../test/harness/mcp-server.js";
 import { DOMAIN_REGISTRARS, registerDomainRegistrars } from "./index.js";
 import { curatedFallbackRegistrar } from "./curatedFallback.js";
 import { habitDomainRegistrar } from "./habits.js";
+import { oneOnOneDomainRegistrar } from "./oneOnOnes.js";
 import { smartMeetingDomainRegistrar } from "./smartMeetings.js";
 import { taskDomainRegistrar } from "./tasks.js";
 
@@ -87,7 +88,7 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(65);
+    expect(harness.tools.length).toBe(76);
     expect(harness.resources.length).toBe(6);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
@@ -99,6 +100,8 @@ describe("domain registrars", () => {
         "reclaim_list_daily_habits",
         "reclaim_create_smart_meeting",
         "reclaim_get_smart_meeting_availability",
+        "reclaim_list_one_on_ones",
+        "reclaim_get_one_on_one_invitee_eligibility",
       ]),
     );
     expect(harness.resources.map((resource) => resource.name)).toEqual(
@@ -118,6 +121,7 @@ describe("domain registrars", () => {
     expect(domains).toContain("tasks");
     expect(domains).toContain("habits");
     expect(domains).toContain("smart_meetings");
+    expect(domains).toContain("smart_1_1s");
     expect(domains).toContain("curated_fallback");
   });
 
@@ -254,5 +258,45 @@ describe("domain registrars", () => {
         convertMeetings.definition.inputSchema as Record<string, unknown>,
       ),
     ).not.toContain("query");
+  });
+
+  it("registers one-on-one domain tools via one-on-one registrar", () => {
+    const { harness, server } = createMcpServerHarness();
+
+    oneOnOneDomainRegistrar.register(server);
+
+    expect(new Set(harness.tools.map((tool) => tool.name))).toEqual(
+      new Set([
+        "reclaim_list_one_on_ones",
+        "reclaim_create_one_on_one",
+        "reclaim_get_one_on_one",
+        "reclaim_update_one_on_one",
+        "reclaim_delete_one_on_one",
+        "reclaim_convert_one_on_one_auto",
+        "reclaim_list_detected_one_on_ones",
+        "reclaim_get_one_on_one_invitee_eligibility",
+        "reclaim_list_one_on_one_invites",
+        "reclaim_get_one_on_one_invite",
+        "reclaim_list_one_on_one_suggestions",
+      ]),
+    );
+
+    const listOneOnOnes = findRegisteredTool(
+      harness.tools,
+      "reclaim_list_one_on_ones",
+    );
+    const deleteOneOnOne = findRegisteredTool(
+      harness.tools,
+      "reclaim_delete_one_on_one",
+    );
+    expectToolAnnotations(listOneOnOnes, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(deleteOneOnOne, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
   });
 });

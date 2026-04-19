@@ -104,6 +104,22 @@ describe("registerRawApiTool", () => {
     );
   });
 
+  it("blocks typed one-on-one endpoints from the raw fallback surface", async () => {
+    const spy = new ToolSpy();
+    registerRawApiTool(spy as unknown as McpServer);
+
+    const handler = spy.getHandler("reclaim_call_api");
+    const result = await handler({
+      method: "POST",
+      path: "/oneOnOne",
+    });
+
+    expect(result.isError).toBe(true);
+    expect(extractText(result)).toContain(
+      "typed and not available via reclaim_call_api",
+    );
+  });
+
   it("returns endpoint metadata and destructive annotation for destructive raw calls", async () => {
     const spy = new ToolSpy();
     registerRawApiTool(spy as unknown as McpServer);

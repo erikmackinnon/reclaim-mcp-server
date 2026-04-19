@@ -206,6 +206,38 @@ export interface SmartMeetingInputData extends TaskInputData {
   [key: string]: any;
 }
 
+export interface OneOnOne extends Task {
+  inviteeId?: number;
+  inviteId?: number;
+  inviteStatus?: string;
+  [key: string]: any;
+}
+
+export interface OneOnOneInputData extends TaskInputData {
+  inviteeId?: number;
+  inviteeEmail?: string;
+  start?: string;
+  end?: string;
+  startTime?: string;
+  endTime?: string;
+  [key: string]: any;
+}
+
+export interface OneOnOneInvite {
+  id?: number;
+  status?: string;
+  inviteeId?: number;
+  inviteeEmail?: string;
+  [key: string]: any;
+}
+
+export interface OneOnOneSuggestion {
+  id?: number;
+  userId?: number;
+  score?: number;
+  [key: string]: any;
+}
+
 /**
  * Custom error class for Reclaim API specific errors.
  * Includes optional status code and detailed error response.
