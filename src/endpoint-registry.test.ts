@@ -69,6 +69,13 @@ describe("endpoint registry coverage", () => {
     const taskList = getEndpointBySignature("GET", "/tasks");
     expect(taskList?.mode).toBe("typed");
     expect(taskList?.isExcluded).toBe(false);
+
+    const smartMeetingAvailability = getEndpointBySignature(
+      "GET",
+      "/smart-meetings/availability/{id}",
+    );
+    expect(smartMeetingAvailability?.mode).toBe("typed");
+    expect(smartMeetingAvailability?.isExcluded).toBe(false);
   });
 
   it("excludes internal migration and feature-toggle/debug endpoints", () => {

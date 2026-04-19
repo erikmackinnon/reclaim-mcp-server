@@ -9,6 +9,7 @@ import { createMcpServerHarness } from "../../test/harness/mcp-server.js";
 import { DOMAIN_REGISTRARS, registerDomainRegistrars } from "./index.js";
 import { curatedFallbackRegistrar } from "./curatedFallback.js";
 import { habitDomainRegistrar } from "./habits.js";
+import { smartMeetingDomainRegistrar } from "./smartMeetings.js";
 import { taskDomainRegistrar } from "./tasks.js";
 
 describe("domain registrars", () => {
@@ -86,7 +87,7 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(54);
+    expect(harness.tools.length).toBe(65);
     expect(harness.resources.length).toBe(6);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
@@ -96,6 +97,8 @@ describe("domain registrars", () => {
         "reclaim_create_habit",
         "reclaim_detect_habits",
         "reclaim_list_daily_habits",
+        "reclaim_create_smart_meeting",
+        "reclaim_get_smart_meeting_availability",
       ]),
     );
     expect(harness.resources.map((resource) => resource.name)).toEqual(
@@ -114,6 +117,7 @@ describe("domain registrars", () => {
     expect(domains.length).toBe(new Set(domains).size);
     expect(domains).toContain("tasks");
     expect(domains).toContain("habits");
+    expect(domains).toContain("smart_meetings");
     expect(domains).toContain("curated_fallback");
   });
 
@@ -186,5 +190,69 @@ describe("domain registrars", () => {
         "reclaim_team_current",
       ]),
     );
+  });
+
+  it("registers smart meetings domain tools via smart meetings registrar", () => {
+    const { harness, server } = createMcpServerHarness();
+
+    smartMeetingDomainRegistrar.register(server);
+
+    expect(new Set(harness.tools.map((tool) => tool.name))).toEqual(
+      new Set([
+        "reclaim_list_smart_meetings",
+        "reclaim_create_smart_meeting",
+        "reclaim_get_smart_meeting",
+        "reclaim_update_smart_meeting",
+        "reclaim_delete_smart_meeting",
+        "reclaim_detect_smart_meetings",
+        "reclaim_get_smart_meeting_attendee_declined",
+        "reclaim_get_smart_meeting_availability",
+        "reclaim_invite_smart_meeting_organizer",
+        "reclaim_convert_smart_meetings_to_single_instances",
+        "reclaim_get_smart_meeting_availability_diagnostics",
+      ]),
+    );
+
+    const listMeetings = findRegisteredTool(
+      harness.tools,
+      "reclaim_list_smart_meetings",
+    );
+    const attendeeDeclined = findRegisteredTool(
+      harness.tools,
+      "reclaim_get_smart_meeting_attendee_declined",
+    );
+    const convertMeetings = findRegisteredTool(
+      harness.tools,
+      "reclaim_convert_smart_meetings_to_single_instances",
+    );
+    const deleteMeeting = findRegisteredTool(
+      harness.tools,
+      "reclaim_delete_smart_meeting",
+    );
+    expectToolAnnotations(listMeetings, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(deleteMeeting, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
+
+    expect(
+      Object.keys(
+        listMeetings.definition.inputSchema as Record<string, unknown>,
+      ),
+    ).not.toContain("query");
+    expect(
+      Object.keys(
+        attendeeDeclined.definition.inputSchema as Record<string, unknown>,
+      ),
+    ).not.toContain("query");
+    expect(
+      Object.keys(
+        convertMeetings.definition.inputSchema as Record<string, unknown>,
+      ),
+    ).not.toContain("query");
   });
 });

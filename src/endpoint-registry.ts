@@ -865,8 +865,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /smart-habits.",
+    description: "Typed Habits endpoint: GET /smart-habits.",
   },
   {
     domain: "habits",
@@ -883,8 +882,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: POST /smart-habits.",
+    description: "Typed Habits endpoint: POST /smart-habits.",
   },
   {
     domain: "habits",
@@ -901,8 +899,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /smart-habits/{id}.",
+    description: "Typed Habits endpoint: GET /smart-habits/{id}.",
   },
   {
     domain: "habits",
@@ -919,8 +916,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: DELETE /smart-habits/{id}.",
+    description: "Typed Habits endpoint: DELETE /smart-habits/{id}.",
   },
   {
     domain: "habits",
@@ -937,8 +933,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: PATCH /smart-habits/{id}.",
+    description: "Typed Habits endpoint: PATCH /smart-habits/{id}.",
   },
   {
     domain: "habits",
@@ -955,8 +950,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /smart-habits/detect.",
+    description: "Typed Habits endpoint: GET /smart-habits/detect.",
   },
   {
     domain: "habits",
@@ -991,8 +985,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: POST /smart-habits/shared.",
+    description: "Typed Habits endpoint: POST /smart-habits/shared.",
   },
   {
     domain: "habits",
@@ -1009,8 +1002,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /smart-habits/shared/{id}.",
+    description: "Typed Habits endpoint: GET /smart-habits/shared/{id}.",
   },
   {
     domain: "habits",
@@ -1027,8 +1019,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /smart-habits/shared/v2/{id}.",
+    description: "Typed Habits endpoint: GET /smart-habits/shared/v2/{id}.",
   },
   {
     domain: "habits",
@@ -1045,8 +1036,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /smart-habits/template.",
+    description: "Typed Habits endpoint: GET /smart-habits/template.",
   },
   {
     domain: "habits",
@@ -1063,8 +1053,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /smart-habits/templates.",
+    description: "Typed Habits endpoint: GET /smart-habits/templates.",
   },
   {
     domain: "habits",
@@ -1081,8 +1070,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: POST /smart-habits/templates/create.",
+    description: "Typed Habits endpoint: POST /smart-habits/templates/create.",
   },
   {
     domain: "habits",
@@ -1099,8 +1087,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /templates/smart-habit.",
+    description: "Typed Habits endpoint: GET /templates/smart-habit.",
   },
   {
     domain: "habits",
@@ -1117,8 +1104,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: POST /templates/smart-habit.",
+    description: "Typed Habits endpoint: POST /templates/smart-habit.",
   },
   {
     domain: "habits",
@@ -1135,8 +1121,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /templates/smart-habit/{id}.",
+    description: "Typed Habits endpoint: GET /templates/smart-habit/{id}.",
   },
   {
     domain: "habits",
@@ -1153,8 +1138,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: PATCH /templates/smart-habit/{id}.",
+    description: "Typed Habits endpoint: PATCH /templates/smart-habit/{id}.",
   },
   {
     domain: "habits",
@@ -1171,8 +1155,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: DELETE /templates/smart-habit/{id}.",
+    description: "Typed Habits endpoint: DELETE /templates/smart-habit/{id}.",
   },
   {
     domain: "habits",
@@ -1189,8 +1172,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /assist/habits/daily.",
+    description: "Typed Habits endpoint: GET /assist/habits/daily.",
   },
   {
     domain: "habits",
@@ -1207,8 +1189,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: POST /assist/habits/daily.",
+    description: "Typed Habits endpoint: POST /assist/habits/daily.",
   },
   {
     domain: "habits",
@@ -1225,8 +1206,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /assist/habits/daily/{id}.",
+    description: "Typed Habits endpoint: GET /assist/habits/daily/{id}.",
   },
   {
     domain: "habits",
@@ -1243,8 +1223,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: PUT /assist/habits/daily/{id}.",
+    description: "Typed Habits endpoint: PUT /assist/habits/daily/{id}.",
   },
   {
     domain: "habits",
@@ -1261,8 +1240,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: PATCH /assist/habits/daily/{id}.",
+    description: "Typed Habits endpoint: PATCH /assist/habits/daily/{id}.",
   },
   {
     domain: "habits",
@@ -1279,8 +1257,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: DELETE /assist/habits/daily/{id}.",
+    description: "Typed Habits endpoint: DELETE /assist/habits/daily/{id}.",
   },
   {
     domain: "habits",
@@ -1297,8 +1274,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /assist/habits/template.",
+    description: "Typed Habits endpoint: GET /assist/habits/template.",
   },
   {
     domain: "habits",
@@ -1315,8 +1291,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: POST /assist/habits/template/create.",
+    description: "Typed Habits endpoint: POST /assist/habits/template/create.",
   },
   {
     domain: "habits",
@@ -1333,15 +1308,14 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Typed Habits endpoint: GET /assist/habits/templates.",
+    description: "Typed Habits endpoint: GET /assist/habits/templates.",
   },
   {
     domain: "smart_meetings",
     pathTemplate: "/smart-meetings",
     method: "GET",
     allowedMethods: ["GET", "POST"],
-    mode: "raw",
+    mode: "typed",
     isExcluded: false,
     exclusionCategory: undefined,
     exclusionReason: undefined,
@@ -1351,15 +1325,14 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Raw Smart Meetings (recurring meeting automation) endpoint: GET /smart-meetings.",
+    description: "Typed Smart Meetings endpoint: GET /smart-meetings.",
   },
   {
     domain: "smart_meetings",
     pathTemplate: "/smart-meetings",
     method: "POST",
     allowedMethods: ["GET", "POST"],
-    mode: "raw",
+    mode: "typed",
     isExcluded: false,
     exclusionCategory: undefined,
     exclusionReason: undefined,
@@ -1369,15 +1342,14 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Raw Smart Meetings (recurring meeting automation) endpoint: POST /smart-meetings.",
+    description: "Typed Smart Meetings endpoint: POST /smart-meetings.",
   },
   {
     domain: "smart_meetings",
     pathTemplate: "/smart-meetings/{id}",
     method: "GET",
     allowedMethods: ["DELETE", "GET", "PATCH"],
-    mode: "raw",
+    mode: "typed",
     isExcluded: false,
     exclusionCategory: undefined,
     exclusionReason: undefined,
@@ -1387,15 +1359,14 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Raw Smart Meetings (recurring meeting automation) endpoint: GET /smart-meetings/{id}.",
+    description: "Typed Smart Meetings endpoint: GET /smart-meetings/{id}.",
   },
   {
     domain: "smart_meetings",
     pathTemplate: "/smart-meetings/{id}",
     method: "DELETE",
     allowedMethods: ["DELETE", "GET", "PATCH"],
-    mode: "raw",
+    mode: "typed",
     isExcluded: false,
     exclusionCategory: undefined,
     exclusionReason: undefined,
@@ -1405,15 +1376,14 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Raw Smart Meetings (recurring meeting automation) endpoint: DELETE /smart-meetings/{id}.",
+    description: "Typed Smart Meetings endpoint: DELETE /smart-meetings/{id}.",
   },
   {
     domain: "smart_meetings",
     pathTemplate: "/smart-meetings/{id}",
     method: "PATCH",
     allowedMethods: ["DELETE", "GET", "PATCH"],
-    mode: "raw",
+    mode: "typed",
     isExcluded: false,
     exclusionCategory: undefined,
     exclusionReason: undefined,
@@ -1423,15 +1393,14 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Raw Smart Meetings (recurring meeting automation) endpoint: PATCH /smart-meetings/{id}.",
+    description: "Typed Smart Meetings endpoint: PATCH /smart-meetings/{id}.",
   },
   {
     domain: "smart_meetings",
     pathTemplate: "/smart-meetings/detect",
     method: "GET",
     allowedMethods: ["GET"],
-    mode: "raw",
+    mode: "typed",
     isExcluded: false,
     exclusionCategory: undefined,
     exclusionReason: undefined,
@@ -1441,15 +1410,14 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       bulk: false,
       highRisk: false,
     },
-    description:
-      "Raw Smart Meetings (recurring meeting automation) endpoint: GET /smart-meetings/detect.",
+    description: "Typed Smart Meetings endpoint: GET /smart-meetings/detect.",
   },
   {
     domain: "smart_meetings",
     pathTemplate: "/smart-meetings/attendeeDeclined",
     method: "GET",
     allowedMethods: ["GET"],
-    mode: "raw",
+    mode: "typed",
     isExcluded: false,
     exclusionCategory: undefined,
     exclusionReason: undefined,
@@ -1460,14 +1428,14 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       highRisk: false,
     },
     description:
-      "Raw Smart Meetings (recurring meeting automation) endpoint: GET /smart-meetings/attendeeDeclined.",
+      "Typed Smart Meetings endpoint: GET /smart-meetings/attendeeDeclined.",
   },
   {
     domain: "smart_meetings",
     pathTemplate: "/smart-meetings/availability/{id}",
     method: "GET",
     allowedMethods: ["GET"],
-    mode: "raw",
+    mode: "typed",
     isExcluded: false,
     exclusionCategory: undefined,
     exclusionReason: undefined,
@@ -1478,14 +1446,14 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       highRisk: false,
     },
     description:
-      "Raw Smart Meetings (recurring meeting automation) endpoint: GET /smart-meetings/availability/{id}.",
+      "Typed Smart Meetings endpoint: GET /smart-meetings/availability/{id}.",
   },
   {
     domain: "smart_meetings",
     pathTemplate: "/smart-meetings/invite-organizer",
     method: "POST",
     allowedMethods: ["POST"],
-    mode: "raw",
+    mode: "typed",
     isExcluded: false,
     exclusionCategory: undefined,
     exclusionReason: undefined,
@@ -1496,14 +1464,14 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       highRisk: false,
     },
     description:
-      "Raw Smart Meetings (recurring meeting automation) endpoint: POST /smart-meetings/invite-organizer.",
+      "Typed Smart Meetings endpoint: POST /smart-meetings/invite-organizer.",
   },
   {
     domain: "smart_meetings",
     pathTemplate: "/smart-meetings/to-single-instances",
     method: "POST",
     allowedMethods: ["POST"],
-    mode: "raw",
+    mode: "typed",
     isExcluded: false,
     exclusionCategory: undefined,
     exclusionReason: undefined,
@@ -1514,14 +1482,14 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       highRisk: false,
     },
     description:
-      "Raw Smart Meetings (recurring meeting automation) endpoint: POST /smart-meetings/to-single-instances.",
+      "Typed Smart Meetings endpoint: POST /smart-meetings/to-single-instances.",
   },
   {
     domain: "smart_meetings",
     pathTemplate: "/assist/smart-meetings/availability-diagnostics",
     method: "GET",
     allowedMethods: ["GET"],
-    mode: "raw",
+    mode: "typed",
     isExcluded: false,
     exclusionCategory: undefined,
     exclusionReason: undefined,
@@ -1532,7 +1500,7 @@ export const ENDPOINT_REGISTRY: readonly EndpointRegistryEntry[] = [
       highRisk: false,
     },
     description:
-      "Raw Smart Meetings (recurring meeting automation) endpoint: GET /assist/smart-meetings/availability-diagnostics.",
+      "Typed Smart Meetings endpoint: GET /assist/smart-meetings/availability-diagnostics.",
   },
   {
     domain: "smart_1_1s",

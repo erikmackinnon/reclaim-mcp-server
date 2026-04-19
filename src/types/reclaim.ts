@@ -184,6 +184,28 @@ export interface DailyHabitInputData extends HabitInputData {
   [key: string]: any;
 }
 
+export interface SmartMeeting extends Task {
+  attendees?: string[];
+  optionalAttendees?: string[];
+  organizerEmail?: string;
+  recurrenceRule?: string;
+  frequency?: string;
+  [key: string]: any;
+}
+
+export interface SmartMeetingInputData extends TaskInputData {
+  attendees?: string[];
+  optionalAttendees?: string[];
+  organizerEmail?: string;
+  recurrenceRule?: string;
+  frequency?: string;
+  start?: string;
+  end?: string;
+  startTime?: string;
+  endTime?: string;
+  [key: string]: any;
+}
+
 /**
  * Custom error class for Reclaim API specific errors.
  * Includes optional status code and detailed error response.
