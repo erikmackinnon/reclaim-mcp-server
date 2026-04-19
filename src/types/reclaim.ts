@@ -414,6 +414,39 @@ export interface DelegatedAccess {
   [key: string]: unknown;
 }
 
+export type TeamEntityId = number | string;
+
+export interface TeamProfile {
+  id?: TeamEntityId;
+  name?: string;
+  slug?: string;
+  [key: string]: unknown;
+}
+
+export interface TeamMembership {
+  id?: TeamEntityId;
+  teamId?: TeamEntityId;
+  userId?: UserAccountId;
+  role?: string;
+  [key: string]: unknown;
+}
+
+export interface TeamOooCalendar {
+  id?: TeamEntityId;
+  teamId?: TeamEntityId;
+  provider?: string;
+  calendarId?: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
+export interface IntegrationConnection {
+  id?: TeamEntityId;
+  provider?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
 export interface TimeScheme {
   id?: number | string;
   name?: string;

@@ -16,6 +16,7 @@ import { oneOnOneDomainRegistrar } from "./oneOnOnes.js";
 import { schedulingLinkDomainRegistrar } from "./schedulingLinks.js";
 import { smartMeetingDomainRegistrar } from "./smartMeetings.js";
 import { taskDomainRegistrar } from "./tasks.js";
+import { teamIntegrationsDomainRegistrar } from "./teamIntegrations.js";
 import { usersAccountsDomainRegistrar } from "./usersAccounts.js";
 import { timePoliciesDomainRegistrar } from "./timePolicies.js";
 
@@ -94,7 +95,7 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(232);
+    expect(harness.tools.length).toBe(274);
     expect(harness.resources.length).toBe(6);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
@@ -125,6 +126,10 @@ describe("domain registrars", () => {
         "reclaim_get_user_analytics",
         "reclaim_list_changelog",
         "reclaim_list_interactions",
+        "reclaim_get_team_current",
+        "reclaim_get_integrations_enabled",
+        "reclaim_list_todoist_integrations",
+        "reclaim_sync_people",
       ]),
     );
     expect(harness.resources.map((resource) => resource.name)).toEqual(
@@ -151,6 +156,7 @@ describe("domain registrars", () => {
     expect(domains).toContain("time_schemes_time_windows_schedule_policies");
     expect(domains).toContain("focus_availability");
     expect(domains).toContain("analytics_changelog_assist");
+    expect(domains).toContain("team_integrations");
     expect(domains).toContain("curated_fallback");
   });
 
@@ -373,6 +379,108 @@ describe("domain registrars", () => {
       destructiveHint: false,
     });
     expectToolAnnotations(createInteraction, {
+      idempotentHint: false,
+      destructiveHint: false,
+    });
+  });
+
+  it("registers team/integrations domain tools via team/integrations registrar", () => {
+    const { harness, server } = createMcpServerHarness();
+
+    teamIntegrationsDomainRegistrar.register(server);
+
+    expect(new Set(harness.tools.map((tool) => tool.name))).toEqual(
+      new Set([
+        "reclaim_get_team_current",
+        "reclaim_get_team_current_membership",
+        "reclaim_respond_team_current_join",
+        "reclaim_leave_team_current",
+        "reclaim_list_team_editions",
+        "reclaim_list_team_joinable",
+        "reclaim_list_team_ooo_calendars",
+        "reclaim_create_team_ooo_calendar",
+        "reclaim_list_team_ooo_calendars_available",
+        "reclaim_get_team_ooo_calendar",
+        "reclaim_delete_team_ooo_calendar",
+        "reclaim_update_team_ooo_calendar",
+        "reclaim_get_integrations_enabled",
+        "reclaim_get_slack_integrations",
+        "reclaim_update_slack_integrations",
+        "reclaim_get_zoom_integrations",
+        "reclaim_create_zoom_integration",
+        "reclaim_delete_zoom_integration",
+        "reclaim_delete_zoom_integration_user",
+        "reclaim_list_todoist_integrations",
+        "reclaim_get_todoist_integration_details",
+        "reclaim_update_todoist_integration_settings",
+        "reclaim_update_todoist_integration",
+        "reclaim_delete_todoist_integration",
+        "reclaim_sync_todoist",
+        "reclaim_list_linear_integrations",
+        "reclaim_update_linear_integration",
+        "reclaim_delete_linear_integration",
+        "reclaim_list_jira_integrations",
+        "reclaim_update_jira_integration",
+        "reclaim_delete_jira_integration",
+        "reclaim_list_jira_v2_sites",
+        "reclaim_delete_jira_v2_site",
+        "reclaim_list_asana_integrations",
+        "reclaim_update_asana_integrations",
+        "reclaim_delete_asana_integrations",
+        "reclaim_list_clickup_integrations",
+        "reclaim_delete_clickup_integrations",
+        "reclaim_get_clickup_integration_details",
+        "reclaim_update_clickup_integration",
+        "reclaim_update_clickup_integration_settings",
+        "reclaim_sync_people",
+      ]),
+    );
+
+    const getTeamCurrent = findRegisteredTool(
+      harness.tools,
+      "reclaim_get_team_current",
+    );
+    const createTeamOooCalendar = findRegisteredTool(
+      harness.tools,
+      "reclaim_create_team_ooo_calendar",
+    );
+    const deleteTeamOooCalendar = findRegisteredTool(
+      harness.tools,
+      "reclaim_delete_team_ooo_calendar",
+    );
+    const getIntegrationsEnabled = findRegisteredTool(
+      harness.tools,
+      "reclaim_get_integrations_enabled",
+    );
+    const deleteZoomIntegration = findRegisteredTool(
+      harness.tools,
+      "reclaim_delete_zoom_integration",
+    );
+    const syncPeople = findRegisteredTool(harness.tools, "reclaim_sync_people");
+
+    expectToolAnnotations(getTeamCurrent, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(createTeamOooCalendar, {
+      idempotentHint: false,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(deleteTeamOooCalendar, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
+    expectToolAnnotations(getIntegrationsEnabled, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(deleteZoomIntegration, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
+    expectToolAnnotations(syncPeople, {
       idempotentHint: false,
       destructiveHint: false,
     });

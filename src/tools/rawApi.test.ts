@@ -120,6 +120,36 @@ describe("registerRawApiTool", () => {
     );
   });
 
+  it("blocks typed team/integration endpoints from the raw fallback surface", async () => {
+    const spy = new ToolSpy();
+    registerRawApiTool(spy as unknown as McpServer);
+
+    const handler = spy.getHandler("reclaim_call_api");
+    const result = await handler({
+      method: "GET",
+      path: "/team/current/membership",
+    });
+
+    expect(result.isError).toBe(true);
+    expect(extractText(result)).toContain(
+      "typed and not available via reclaim_call_api",
+    );
+  });
+
+  it("blocks excluded invitation administration endpoints", async () => {
+    const spy = new ToolSpy();
+    registerRawApiTool(spy as unknown as McpServer);
+
+    const handler = spy.getHandler("reclaim_call_api");
+    const result = await handler({
+      method: "GET",
+      path: "/team/current/inviteable",
+    });
+
+    expect(result.isError).toBe(true);
+    expect(extractText(result)).toContain("excluded by policy");
+  });
+
   it("allows PUT /tasks/{id} through raw fallback when the route is raw-scoped", async () => {
     const spy = new ToolSpy();
     registerRawApiTool(spy as unknown as McpServer);

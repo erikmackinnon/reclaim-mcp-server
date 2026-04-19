@@ -8,3 +8,4 @@ export * as smartMeetingsDomainClient from "./smart-meetings/index.js";
 export * as tasksDomainClient from "./tasks/index.js";
 export * as usersAccountsDomainClient from "./users-accounts/index.js";
 export * as timeSchemesPoliciesDomainClient from "./time-schemes-policies/index.js";
+export * as teamIntegrationsDomainClient from "./team-integrations/index.js";

@@ -7,6 +7,7 @@ import { oneOnOneDomainRegistrar } from "./oneOnOnes.js";
 import { schedulingLinkDomainRegistrar } from "./schedulingLinks.js";
 import { smartMeetingDomainRegistrar } from "./smartMeetings.js";
 import { taskDomainRegistrar } from "./tasks.js";
+import { teamIntegrationsDomainRegistrar } from "./teamIntegrations.js";
 import { usersAccountsDomainRegistrar } from "./usersAccounts.js";
 import { timePoliciesDomainRegistrar } from "./timePolicies.js";
 
@@ -24,6 +25,7 @@ export const DOMAIN_REGISTRARS: readonly DomainRegistrar[] = [
   timePoliciesDomainRegistrar,
   focusAvailabilityDomainRegistrar,
   analyticsChangelogAssistDomainRegistrar,
+  teamIntegrationsDomainRegistrar,
   curatedFallbackRegistrar,
 ];
 

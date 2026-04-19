@@ -252,6 +252,73 @@ describe("endpoint registry coverage", () => {
     expect(scoringRescore?.safety.highRisk).toBe(true);
   });
 
+  it("classifies WU-15 team and integration self-service endpoints as typed while enforcing exclusions", () => {
+    const teamCurrent = getEndpointBySignature("GET", "/team/current");
+    expect(teamCurrent?.mode).toBe("typed");
+    expect(teamCurrent?.isExcluded).toBe(false);
+
+    const teamMembership = getEndpointBySignature(
+      "GET",
+      "/team/current/membership",
+    );
+    expect(teamMembership?.mode).toBe("typed");
+    expect(teamMembership?.isExcluded).toBe(false);
+
+    const teamLeave = getEndpointBySignature("POST", "/team/current/leave");
+    expect(teamLeave?.mode).toBe("typed");
+    expect(teamLeave?.safety.readOnly).toBe(false);
+
+    const teamOooDelete = getEndpointBySignature(
+      "DELETE",
+      "/team/ooo-calendars/{id}",
+    );
+    expect(teamOooDelete?.mode).toBe("typed");
+    expect(teamOooDelete?.safety.destructive).toBe(true);
+
+    const inviteableAdmin = getEndpointBySignature(
+      "GET",
+      "/team/current/inviteable",
+    );
+    expect(inviteableAdmin?.mode).toBe("excluded");
+    expect(inviteableAdmin?.exclusionCategory).toBe("admin");
+
+    const invitationDeleteAdmin = getEndpointBySignature(
+      "DELETE",
+      "/team/current/invitation/{id}",
+    );
+    expect(invitationDeleteAdmin?.mode).toBe("excluded");
+    expect(invitationDeleteAdmin?.exclusionCategory).toBe("admin");
+
+    const slackIntegrations = getEndpointBySignature(
+      "GET",
+      "/slack/integrations",
+    );
+    expect(slackIntegrations?.mode).toBe("typed");
+    expect(slackIntegrations?.isExcluded).toBe(false);
+
+    const todoistSync = getEndpointBySignature("POST", "/todoist/sync");
+    expect(todoistSync?.mode).toBe("typed");
+    expect(todoistSync?.isExcluded).toBe(false);
+
+    const integrationsEnabled = getEndpointBySignature(
+      "GET",
+      "/integrations/enabled",
+    );
+    expect(integrationsEnabled?.mode).toBe("typed");
+    expect(integrationsEnabled?.isExcluded).toBe(false);
+
+    const zoomOauthInit = getEndpointBySignature("GET", "/oauth/zoom/init");
+    expect(zoomOauthInit?.mode).toBe("excluded");
+    expect(zoomOauthInit?.exclusionCategory).toBe("oauth");
+
+    const slackActionCallback = getEndpointBySignature(
+      "POST",
+      "/slack/action-endpoint",
+    );
+    expect(slackActionCallback?.mode).toBe("excluded");
+    expect(slackActionCallback?.exclusionCategory).toBe("callback_route");
+  });
+
   it("resolves wildcard assist-settings routes without losing explicit debug exclusions", () => {
     const wildcardAssistSettings = matchEndpointRequest(
       "POST",
