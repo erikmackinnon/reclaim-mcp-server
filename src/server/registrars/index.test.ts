@@ -92,7 +92,7 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(189);
+    expect(harness.tools.length).toBe(188);
     expect(harness.resources.length).toBe(6);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
