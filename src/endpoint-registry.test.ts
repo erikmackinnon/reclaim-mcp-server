@@ -80,6 +80,13 @@ describe("endpoint registry coverage", () => {
     const oneOnOneList = getEndpointBySignature("GET", "/oneOnOne");
     expect(oneOnOneList?.mode).toBe("typed");
     expect(oneOnOneList?.isExcluded).toBe(false);
+
+    const recentSchedulingLinks = getEndpointBySignature(
+      "GET",
+      "/scheduling-link/recent",
+    );
+    expect(recentSchedulingLinks?.mode).toBe("typed");
+    expect(recentSchedulingLinks?.isExcluded).toBe(false);
   });
 
   it("excludes internal migration and feature-toggle/debug endpoints", () => {

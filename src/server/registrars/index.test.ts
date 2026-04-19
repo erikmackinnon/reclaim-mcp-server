@@ -10,6 +10,7 @@ import { DOMAIN_REGISTRARS, registerDomainRegistrars } from "./index.js";
 import { curatedFallbackRegistrar } from "./curatedFallback.js";
 import { habitDomainRegistrar } from "./habits.js";
 import { oneOnOneDomainRegistrar } from "./oneOnOnes.js";
+import { schedulingLinkDomainRegistrar } from "./schedulingLinks.js";
 import { smartMeetingDomainRegistrar } from "./smartMeetings.js";
 import { taskDomainRegistrar } from "./tasks.js";
 
@@ -88,7 +89,7 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(76);
+    expect(harness.tools.length).toBe(102);
     expect(harness.resources.length).toBe(6);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
@@ -102,6 +103,10 @@ describe("domain registrars", () => {
         "reclaim_get_smart_meeting_availability",
         "reclaim_list_one_on_ones",
         "reclaim_get_one_on_one_invitee_eligibility",
+        "reclaim_list_scheduling_links",
+        "reclaim_create_scheduling_link_group",
+        "reclaim_refresh_scheduling_link_meeting",
+        "reclaim_get_participant_resolution_scheduling_link",
       ]),
     );
     expect(harness.resources.map((resource) => resource.name)).toEqual(
@@ -122,6 +127,7 @@ describe("domain registrars", () => {
     expect(domains).toContain("habits");
     expect(domains).toContain("smart_meetings");
     expect(domains).toContain("smart_1_1s");
+    expect(domains).toContain("scheduling_links");
     expect(domains).toContain("curated_fallback");
   });
 
@@ -295,6 +301,78 @@ describe("domain registrars", () => {
       destructiveHint: false,
     });
     expectToolAnnotations(deleteOneOnOne, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
+  });
+
+  it("registers scheduling links domain tools via scheduling links registrar", () => {
+    const { harness, server } = createMcpServerHarness();
+
+    schedulingLinkDomainRegistrar.register(server);
+
+    expect(new Set(harness.tools.map((tool) => tool.name))).toEqual(
+      new Set([
+        "reclaim_list_scheduling_links",
+        "reclaim_create_scheduling_link",
+        "reclaim_get_scheduling_link",
+        "reclaim_update_scheduling_link",
+        "reclaim_delete_scheduling_link",
+        "reclaim_create_scheduling_link_derivative",
+        "reclaim_get_scheduling_link_effective_time_policy",
+        "reclaim_get_scheduling_link_for_user_link_slug",
+        "reclaim_get_scheduling_link_for_user_slug",
+        "reclaim_list_recent_scheduling_links",
+        "reclaim_check_scheduling_link_slug_exists",
+        "reclaim_list_scheduling_link_user_slugs",
+        "reclaim_create_scheduling_link_user_slug",
+        "reclaim_get_scheduling_link_user_slug",
+        "reclaim_check_scheduling_link_user_slug_exists",
+        "reclaim_list_scheduling_link_groups",
+        "reclaim_create_scheduling_link_group",
+        "reclaim_get_scheduling_link_group_by_slug",
+        "reclaim_update_scheduling_link_group",
+        "reclaim_delete_scheduling_link_group",
+        "reclaim_get_scheduling_link_meeting",
+        "reclaim_update_scheduling_link_meeting",
+        "reclaim_delete_scheduling_link_meeting",
+        "reclaim_refresh_scheduling_link_meeting",
+        "reclaim_get_participant_resolution",
+        "reclaim_get_participant_resolution_scheduling_link",
+      ]),
+    );
+
+    const listLinks = findRegisteredTool(
+      harness.tools,
+      "reclaim_list_scheduling_links",
+    );
+    const deleteLink = findRegisteredTool(
+      harness.tools,
+      "reclaim_delete_scheduling_link",
+    );
+    const deleteGroup = findRegisteredTool(
+      harness.tools,
+      "reclaim_delete_scheduling_link_group",
+    );
+    const participantResolution = findRegisteredTool(
+      harness.tools,
+      "reclaim_get_participant_resolution",
+    );
+    expectToolAnnotations(listLinks, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(participantResolution, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(deleteLink, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
+    expectToolAnnotations(deleteGroup, {
       idempotentHint: true,
       destructiveHint: true,
     });

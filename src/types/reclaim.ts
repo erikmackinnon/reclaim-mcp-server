@@ -238,6 +238,34 @@ export interface OneOnOneSuggestion {
   [key: string]: any;
 }
 
+export interface SchedulingLink {
+  id?: number | string;
+  slug?: string;
+  title?: string;
+  [key: string]: any;
+}
+
+export interface SchedulingLinkInputData {
+  [key: string]: any;
+}
+
+export interface SchedulingLinkGroup extends SchedulingLink {
+  groupId?: number | string;
+  [key: string]: any;
+}
+
+export interface SchedulingLinkUserSlug {
+  id?: number | string;
+  slug?: string;
+  [key: string]: any;
+}
+
+export interface ParticipantResolution {
+  participantId?: number | string;
+  schedulingLinkId?: number | string;
+  [key: string]: any;
+}
+
 /**
  * Custom error class for Reclaim API specific errors.
  * Includes optional status code and detailed error response.
