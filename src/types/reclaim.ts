@@ -287,7 +287,6 @@ export interface ParticipantResolution {
   calendarId?: EventCalendarId;
   [key: string]: any;
 }
-
 export type UserAccountId = number | string;
 
 export interface UserProfile {
@@ -334,6 +333,61 @@ export interface DelegatedAccess {
   email?: string;
   userId?: UserAccountId;
   [key: string]: unknown;
+}
+
+export interface TimeScheme {
+  id?: number | string;
+  name?: string;
+  [key: string]: any;
+}
+
+export interface TimeSchemeInputData {
+  [key: string]: any;
+}
+
+export interface TimeSchemeRule {
+  id?: number | string;
+  timeSchemeId?: number | string;
+  [key: string]: any;
+}
+
+export interface TimeSchemeRuleInputData {
+  [key: string]: any;
+}
+
+export interface AccountTimeScheme {
+  id?: number | string;
+  accountId?: number | string;
+  timeSchemeId?: number | string;
+  [key: string]: any;
+}
+
+export interface AccountTimeSchemeInputData {
+  [key: string]: any;
+}
+
+export interface EffectiveTimePolicyInputData {
+  [key: string]: any;
+}
+
+export interface TimeWindowOverride {
+  id?: number | string;
+  timeSchemeId?: number | string;
+  [key: string]: any;
+}
+
+export interface TimeWindowOverrideEntryInputData {
+  [key: string]: any;
+}
+
+export interface SchedulePolicy {
+  id?: number | string;
+  type?: string;
+  [key: string]: any;
+}
+
+export interface SchedulePolicyInputData {
+  [key: string]: any;
 }
 
 /**

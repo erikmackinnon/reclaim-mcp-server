@@ -15,6 +15,7 @@ import { schedulingLinkDomainRegistrar } from "./schedulingLinks.js";
 import { smartMeetingDomainRegistrar } from "./smartMeetings.js";
 import { taskDomainRegistrar } from "./tasks.js";
 import { usersAccountsDomainRegistrar } from "./usersAccounts.js";
+import { timePoliciesDomainRegistrar } from "./timePolicies.js";
 
 describe("domain registrars", () => {
   it("registers task domain tools and resources via task registrar", () => {
@@ -91,7 +92,7 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(156);
+    expect(harness.tools.length).toBe(189);
     expect(harness.resources.length).toBe(6);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
@@ -115,6 +116,8 @@ describe("domain registrars", () => {
         "reclaim_get_current_user",
         "reclaim_list_accounts",
         "reclaim_list_delegated_access",
+        "reclaim_list_time_schemes",
+        "reclaim_get_recommended_schedule_policy",
       ]),
     );
     expect(harness.resources.map((resource) => resource.name)).toEqual(
@@ -138,6 +141,7 @@ describe("domain registrars", () => {
     expect(domains).toContain("scheduling_links");
     expect(domains).toContain("events_calendars");
     expect(domains).toContain("users_accounts");
+    expect(domains).toContain("time_schemes_time_windows_schedule_policies");
     expect(domains).toContain("curated_fallback");
   });
 
@@ -520,6 +524,76 @@ describe("domain registrars", () => {
     expectToolAnnotations(deleteGroup, {
       idempotentHint: true,
       destructiveHint: true,
+    });
+  });
+
+  it("registers time policies domain tools via time policies registrar", () => {
+    const { harness, server } = createMcpServerHarness();
+
+    timePoliciesDomainRegistrar.register(server);
+
+    expect(new Set(harness.tools.map((tool) => tool.name))).toEqual(
+      new Set([
+        "reclaim_list_time_schemes",
+        "reclaim_create_time_scheme",
+        "reclaim_get_time_scheme",
+        "reclaim_update_time_scheme",
+        "reclaim_delete_time_scheme",
+        "reclaim_list_time_scheme_feature_filters",
+        "reclaim_get_time_scheme_feature_filter",
+        "reclaim_list_time_scheme_rules",
+        "reclaim_create_time_scheme_rule",
+        "reclaim_update_time_scheme_rule",
+        "reclaim_delete_time_scheme_rule",
+        "reclaim_reindex_time_scheme_rule",
+        "reclaim_list_account_time_schemes",
+        "reclaim_create_account_time_scheme",
+        "reclaim_update_account_time_scheme",
+        "reclaim_get_effective_time_policy",
+        "reclaim_list_time_window_overrides",
+        "reclaim_create_time_window_override_entry",
+        "reclaim_delete_time_window_override_entry",
+        "reclaim_list_schedule_policies",
+        "reclaim_create_schedule_policy",
+        "reclaim_get_schedule_policy",
+        "reclaim_delete_schedule_policy",
+        "reclaim_list_schedule_policy_available_types",
+        "reclaim_create_default_schedule_policies",
+        "reclaim_list_schedule_policy_event_matcher_tags",
+        "reclaim_match_schedule_policy_events",
+        "reclaim_get_recommended_schedule_policy",
+        "reclaim_list_schedule_policy_smart_meeting_candidates",
+        "reclaim_list_schedule_policy_templates",
+        "reclaim_instantiate_schedule_policy_meeting_quality_template",
+        "reclaim_get_instantiated_schedule_policy_template",
+      ]),
+    );
+
+    const listTimeSchemes = findRegisteredTool(
+      harness.tools,
+      "reclaim_list_time_schemes",
+    );
+    const deleteTimeScheme = findRegisteredTool(
+      harness.tools,
+      "reclaim_delete_time_scheme",
+    );
+    const createDefaultPolicies = findRegisteredTool(
+      harness.tools,
+      "reclaim_create_default_schedule_policies",
+    );
+
+    expectToolAnnotations(listTimeSchemes, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(deleteTimeScheme, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
+    expectToolAnnotations(createDefaultPolicies, {
+      idempotentHint: false,
+      destructiveHint: false,
     });
   });
 });

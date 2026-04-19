@@ -111,6 +111,17 @@ describe("endpoint registry coverage", () => {
     expect(userTimePoliciesPatch?.mode).toBe("typed");
     expect(userTimePoliciesPatch?.isExcluded).toBe(false);
 
+    const timeSchemes = getEndpointBySignature("GET", "/timeschemes");
+    expect(timeSchemes?.mode).toBe("typed");
+    expect(timeSchemes?.isExcluded).toBe(false);
+
+    const schedulePolicyRecommended = getEndpointBySignature(
+      "POST",
+      "/schedule-policy/recommended",
+    );
+    expect(schedulePolicyRecommended?.mode).toBe("typed");
+    expect(schedulePolicyRecommended?.isExcluded).toBe(false);
+
     const watchSettings = getEndpointBySignature(
       "POST",
       "/calendars/watchSettings",
@@ -153,6 +164,16 @@ describe("endpoint registry coverage", () => {
     expect(reindexByDue?.safety.highRisk).toBe(true);
     expect(reindexByDue?.safety.readOnly).toBe(false);
     expect(reindexByDue?.safety.destructive).toBe(false);
+  });
+
+  it("marks schedule-policy default creation as mutative despite GET", () => {
+    const createDefaultPolicies = getEndpointBySignature(
+      "GET",
+      "/schedule-policy/create-default-policies",
+    );
+
+    expect(createDefaultPolicies?.safety.readOnly).toBe(false);
+    expect(createDefaultPolicies?.safety.destructive).toBe(false);
   });
 
   it("resolves wildcard assist-settings routes without losing explicit debug exclusions", () => {
