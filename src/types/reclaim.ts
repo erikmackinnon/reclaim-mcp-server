@@ -260,12 +260,6 @@ export interface SchedulingLinkUserSlug {
   [key: string]: any;
 }
 
-export interface ParticipantResolution {
-  participantId?: number | string;
-  schedulingLinkId?: number | string;
-  [key: string]: any;
-}
-
 export type EventCalendarId = number | string;
 
 export interface ReclaimEvent {
