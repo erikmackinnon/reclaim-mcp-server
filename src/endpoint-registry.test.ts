@@ -87,6 +87,22 @@ describe("endpoint registry coverage", () => {
     );
     expect(recentSchedulingLinks?.mode).toBe("typed");
     expect(recentSchedulingLinks?.isExcluded).toBe(false);
+
+    const eventsList = getEndpointBySignature("GET", "/events");
+    expect(eventsList?.mode).toBe("typed");
+    expect(eventsList?.isExcluded).toBe(false);
+
+    const primaryCalendar = getEndpointBySignature("GET", "/calendars/primary");
+    expect(primaryCalendar?.mode).toBe("typed");
+    expect(primaryCalendar?.isExcluded).toBe(false);
+
+    const watchSettings = getEndpointBySignature(
+      "POST",
+      "/calendars/watchSettings",
+    );
+    expect(watchSettings?.mode).toBe("excluded");
+    expect(watchSettings?.isExcluded).toBe(true);
+    expect(watchSettings?.exclusionCategory).toBe("callback_route");
   });
 
   it("excludes internal migration and feature-toggle/debug endpoints", () => {

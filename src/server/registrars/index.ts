@@ -1,4 +1,5 @@
 import { curatedFallbackRegistrar } from "./curatedFallback.js";
+import { eventsCalendarsDomainRegistrar } from "./eventsCalendars.js";
 import { habitDomainRegistrar } from "./habits.js";
 import { oneOnOneDomainRegistrar } from "./oneOnOnes.js";
 import { schedulingLinkDomainRegistrar } from "./schedulingLinks.js";
@@ -14,6 +15,7 @@ export const DOMAIN_REGISTRARS: readonly DomainRegistrar[] = [
   oneOnOneDomainRegistrar,
   smartMeetingDomainRegistrar,
   schedulingLinkDomainRegistrar,
+  eventsCalendarsDomainRegistrar,
   curatedFallbackRegistrar,
 ];
 

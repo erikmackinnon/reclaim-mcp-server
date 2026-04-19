@@ -120,6 +120,29 @@ describe("registerRawApiTool", () => {
     );
   });
 
+  it("allows PUT /tasks/{id} through raw fallback when the route is raw-scoped", async () => {
+    const spy = new ToolSpy();
+    registerRawApiTool(spy as unknown as McpServer);
+
+    vi.spyOn(reclaim, "request").mockResolvedValue({
+      data: { ok: true },
+    } as never);
+
+    const handler = spy.getHandler("reclaim_call_api");
+    const result = await handler({
+      method: "PUT",
+      path: "/tasks/123",
+      body: { title: "Updated Task" },
+    });
+
+    expect(result.isError).not.toBe(true);
+
+    const payload = result.structuredContent as RawToolResultPayload;
+    expect(payload.result.endpoint.pathTemplate).toBe("/tasks/{id}");
+    expect(payload.result.endpoint.mode).toBe("raw");
+    expect(payload.result.response).toEqual({ ok: true });
+  });
+
   it("returns endpoint metadata and destructive annotation for destructive raw calls", async () => {
     const spy = new ToolSpy();
     registerRawApiTool(spy as unknown as McpServer);

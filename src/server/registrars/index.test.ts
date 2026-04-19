@@ -8,6 +8,7 @@ import {
 import { createMcpServerHarness } from "../../test/harness/mcp-server.js";
 import { DOMAIN_REGISTRARS, registerDomainRegistrars } from "./index.js";
 import { curatedFallbackRegistrar } from "./curatedFallback.js";
+import { eventsCalendarsDomainRegistrar } from "./eventsCalendars.js";
 import { habitDomainRegistrar } from "./habits.js";
 import { oneOnOneDomainRegistrar } from "./oneOnOnes.js";
 import { schedulingLinkDomainRegistrar } from "./schedulingLinks.js";
@@ -89,7 +90,7 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(102);
+    expect(harness.tools.length).toBe(120);
     expect(harness.resources.length).toBe(6);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
@@ -107,6 +108,9 @@ describe("domain registrars", () => {
         "reclaim_create_scheduling_link_group",
         "reclaim_refresh_scheduling_link_meeting",
         "reclaim_get_participant_resolution_scheduling_link",
+        "reclaim_list_events",
+        "reclaim_get_primary_calendar",
+        "reclaim_validate_sync_policy",
       ]),
     );
     expect(harness.resources.map((resource) => resource.name)).toEqual(
@@ -128,6 +132,7 @@ describe("domain registrars", () => {
     expect(domains).toContain("smart_meetings");
     expect(domains).toContain("smart_1_1s");
     expect(domains).toContain("scheduling_links");
+    expect(domains).toContain("events_calendars");
     expect(domains).toContain("curated_fallback");
   });
 
@@ -200,6 +205,59 @@ describe("domain registrars", () => {
         "reclaim_team_current",
       ]),
     );
+  });
+
+  it("registers events/calendars domain tools via events/calendars registrar", () => {
+    const { harness, server } = createMcpServerHarness();
+
+    eventsCalendarsDomainRegistrar.register(server);
+
+    expect(new Set(harness.tools.map((tool) => tool.name))).toEqual(
+      new Set([
+        "reclaim_list_events",
+        "reclaim_list_events_v2",
+        "reclaim_get_event",
+        "reclaim_list_personal_events",
+        "reclaim_convert_event_to_v2",
+        "reclaim_match_event",
+        "reclaim_get_primary_calendar",
+        "reclaim_list_personal_calendars",
+        "reclaim_get_personal_calendar",
+        "reclaim_delete_personal_calendar",
+        "reclaim_list_personal_calendar_candidates",
+        "reclaim_get_sync_calendar",
+        "reclaim_delete_sync_calendar",
+        "reclaim_list_sync_calendar_candidates",
+        "reclaim_register_sync_interest",
+        "reclaim_get_sync_policy",
+        "reclaim_validate_sync_policy",
+        "reclaim_sync_calendar_permissions",
+      ]),
+    );
+
+    const listEvents = findRegisteredTool(harness.tools, "reclaim_list_events");
+    const deletePersonalCalendar = findRegisteredTool(
+      harness.tools,
+      "reclaim_delete_personal_calendar",
+    );
+    const deleteSyncCalendar = findRegisteredTool(
+      harness.tools,
+      "reclaim_delete_sync_calendar",
+    );
+
+    expectToolAnnotations(listEvents, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(deletePersonalCalendar, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
+    expectToolAnnotations(deleteSyncCalendar, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
   });
 
   it("registers smart meetings domain tools via smart meetings registrar", () => {

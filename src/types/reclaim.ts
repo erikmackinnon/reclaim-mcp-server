@@ -266,6 +266,34 @@ export interface ParticipantResolution {
   [key: string]: any;
 }
 
+export type EventCalendarId = number | string;
+
+export interface ReclaimEvent {
+  id?: EventCalendarId;
+  title?: string;
+  start?: string;
+  end?: string;
+  calendarId?: EventCalendarId;
+  source?: string;
+  [key: string]: any;
+}
+
+export interface EventCalendar {
+  id?: EventCalendarId;
+  name?: string;
+  provider?: string;
+  isPrimary?: boolean;
+  [key: string]: any;
+}
+
+export interface ParticipantResolution {
+  participantId?: number | string;
+  schedulingLinkId?: number | string;
+  eventId?: EventCalendarId;
+  calendarId?: EventCalendarId;
+  [key: string]: any;
+}
+
 /**
  * Custom error class for Reclaim API specific errors.
  * Includes optional status code and detailed error response.
