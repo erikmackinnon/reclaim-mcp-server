@@ -122,6 +122,36 @@ describe("endpoint registry coverage", () => {
     expect(schedulePolicyRecommended?.mode).toBe("typed");
     expect(schedulePolicyRecommended?.isExcluded).toBe(false);
 
+    const focusSettingsUser = getEndpointBySignature(
+      "GET",
+      "/focus-settings/user",
+    );
+    expect(focusSettingsUser?.mode).toBe("typed");
+    expect(focusSettingsUser?.isExcluded).toBe(false);
+
+    const focusPlannerReschedule = getEndpointBySignature(
+      "POST",
+      "/focus/planner/{id}/{eventId}/reschedule",
+    );
+    expect(focusPlannerReschedule?.mode).toBe("typed");
+    expect(focusPlannerReschedule?.isExcluded).toBe(false);
+
+    const suggestedTimes = getEndpointBySignature(
+      "POST",
+      "/availability/suggested-times",
+    );
+    expect(suggestedTimes?.mode).toBe("typed");
+    expect(suggestedTimes?.isExcluded).toBe(false);
+    expect(suggestedTimes?.safety.readOnly).toBe(true);
+
+    const idealTimeAvailability = getEndpointBySignature(
+      "POST",
+      "/availability/ideal-time-availability",
+    );
+    expect(idealTimeAvailability?.mode).toBe("typed");
+    expect(idealTimeAvailability?.isExcluded).toBe(false);
+    expect(idealTimeAvailability?.safety.readOnly).toBe(true);
+
     const watchSettings = getEndpointBySignature(
       "POST",
       "/calendars/watchSettings",

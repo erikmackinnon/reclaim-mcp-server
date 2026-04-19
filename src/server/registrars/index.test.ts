@@ -9,6 +9,7 @@ import { createMcpServerHarness } from "../../test/harness/mcp-server.js";
 import { DOMAIN_REGISTRARS, registerDomainRegistrars } from "./index.js";
 import { curatedFallbackRegistrar } from "./curatedFallback.js";
 import { eventsCalendarsDomainRegistrar } from "./eventsCalendars.js";
+import { focusAvailabilityDomainRegistrar } from "./focusAvailability.js";
 import { habitDomainRegistrar } from "./habits.js";
 import { oneOnOneDomainRegistrar } from "./oneOnOnes.js";
 import { schedulingLinkDomainRegistrar } from "./schedulingLinks.js";
@@ -92,7 +93,7 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(188);
+    expect(harness.tools.length).toBe(200);
     expect(harness.resources.length).toBe(6);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
@@ -118,6 +119,8 @@ describe("domain registrars", () => {
         "reclaim_list_delegated_access",
         "reclaim_list_time_schemes",
         "reclaim_get_recommended_schedule_policy",
+        "reclaim_get_focus_settings_user",
+        "reclaim_get_ideal_time_availability",
       ]),
     );
     expect(harness.resources.map((resource) => resource.name)).toEqual(
@@ -142,6 +145,7 @@ describe("domain registrars", () => {
     expect(domains).toContain("events_calendars");
     expect(domains).toContain("users_accounts");
     expect(domains).toContain("time_schemes_time_windows_schedule_policies");
+    expect(domains).toContain("focus_availability");
     expect(domains).toContain("curated_fallback");
   });
 
@@ -593,6 +597,66 @@ describe("domain registrars", () => {
     });
     expectToolAnnotations(createDefaultPolicies, {
       idempotentHint: false,
+      destructiveHint: false,
+    });
+  });
+
+  it("registers focus/availability domain tools via focus/availability registrar", () => {
+    const { harness, server } = createMcpServerHarness();
+
+    focusAvailabilityDomainRegistrar.register(server);
+
+    expect(new Set(harness.tools.map((tool) => tool.name))).toEqual(
+      new Set([
+        "reclaim_get_focus_settings_user",
+        "reclaim_update_focus_settings_user",
+        "reclaim_get_focus_settings_default_focus_time",
+        "reclaim_patch_focus_settings_user",
+        "reclaim_list_focus_settings_team",
+        "reclaim_get_focus_settings_team",
+        "reclaim_lock_focus_planner_event",
+        "reclaim_unlock_focus_planner_event",
+        "reclaim_move_focus_planner_event",
+        "reclaim_reschedule_focus_planner_event",
+        "reclaim_get_ideal_time_availability",
+        "reclaim_get_suggested_times",
+      ]),
+    );
+
+    const getFocusSettingsUser = findRegisteredTool(
+      harness.tools,
+      "reclaim_get_focus_settings_user",
+    );
+    const lockPlannerEvent = findRegisteredTool(
+      harness.tools,
+      "reclaim_lock_focus_planner_event",
+    );
+    const getIdealTimeAvailability = findRegisteredTool(
+      harness.tools,
+      "reclaim_get_ideal_time_availability",
+    );
+    const getSuggestedTimes = findRegisteredTool(
+      harness.tools,
+      "reclaim_get_suggested_times",
+    );
+
+    expectToolAnnotations(getFocusSettingsUser, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(lockPlannerEvent, {
+      idempotentHint: false,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(getIdealTimeAvailability, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(getSuggestedTimes, {
+      readOnlyHint: true,
+      idempotentHint: true,
       destructiveHint: false,
     });
   });

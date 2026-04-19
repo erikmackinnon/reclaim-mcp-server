@@ -287,6 +287,66 @@ export interface ParticipantResolution {
   calendarId?: EventCalendarId;
   [key: string]: any;
 }
+
+export type FocusSettingsId = number | string;
+
+export interface FocusSettings {
+  id?: FocusSettingsId;
+  teamId?: FocusSettingsId;
+  enabled?: boolean;
+  [key: string]: unknown;
+}
+
+export interface FocusPlannerActionInput {
+  at?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface FocusPlannerActionResult {
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+export interface AvailabilityRequestPayload {
+  at?: string;
+  availabilityStart?: string;
+  availabilityEnd?: string;
+  date?: string;
+  deadline?: number | string;
+  due?: string;
+  end?: string;
+  endDate?: string;
+  endTime?: string;
+  from?: string;
+  on?: string;
+  snoozeUntil?: number | string;
+  start?: string;
+  startDate?: string;
+  startTime?: string;
+  to?: string;
+  windowStart?: string;
+  windowEnd?: string;
+  attendeeEmail?: string;
+  attendeeEmails?: string[];
+  attendees?: string[];
+  optionalAttendees?: string[];
+  organizerEmail?: string;
+  includeOptionalAttendees?: boolean;
+  durationMinutes?: number;
+  minimumNoticeMinutes?: number;
+  maxResults?: number;
+  [key: string]: unknown;
+}
+
+export type IdealTimeAvailabilityRequest = AvailabilityRequestPayload;
+
+export type SuggestedTimesRequest = AvailabilityRequestPayload;
+
+export interface AvailabilityResult {
+  [key: string]: unknown;
+}
+
 export type UserAccountId = number | string;
 
 export interface UserProfile {

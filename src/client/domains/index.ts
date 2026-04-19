@@ -1,4 +1,5 @@
 export * as eventsCalendarsDomainClient from "./events-calendars/index.js";
+export * as focusAvailabilityDomainClient from "./focus-availability/index.js";
 export * as habitsDomainClient from "./habits/index.js";
 export * as oneOnOnesDomainClient from "./oneOnOnes/index.js";
 export * as schedulingLinksDomainClient from "./scheduling-links/index.js";
