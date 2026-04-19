@@ -2,7 +2,7 @@
 
 # Reclaim.ai MCP Server (Unofficial)
 
-An **unofficial** [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that exposes Reclaim.ai tasks to MCP-capable clients via **tools** and an **active tasks** resource.
+An **unofficial** [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that exposes a broad, end-user-safe Reclaim.ai surface via typed MCP tools/resources and one constrained raw fallback tool.
 
 > This project is not endorsed, sponsored, or supported by Reclaim.ai. It uses Reclaim's public API. Use at your own risk and comply with Reclaim's Terms of Service.
 
@@ -11,6 +11,9 @@ This repository is a fork of `jj3ny/reclaim-mcp-server`, originally authored by 
 ## What’s in this fork
 
 - **MCP SDK upgrade** + modern MCP registrations (`registerTool`, `registerResource`)
+- **Expanded surface coverage** across tasks, habits, meetings, one-on-ones, scheduling links, calendars, user/account settings, policies, focus/availability, analytics/changelog/assist, and team/integrations self-service flows
+- **Endpoint registry model** that classifies every API signature as `typed`, `raw`, or `excluded`, with safety flags and exclusion metadata
+- **Generated capability matrix** (`CAPABILITY-MATRIX.md` / `CAPABILITY-MATRIX.json`) for auditable surface coverage
 - **Streamable HTTP transport** (in addition to stdio)
 - **Safer task duration inputs**: use minutes (`durationMinutes`, `minDurationMinutes`, `maxDurationMinutes`) instead of raw Reclaim chunk counts
 - **“No chunking / exact duration” support** via `lockChunkSizeToDuration`
@@ -135,81 +138,100 @@ Use either:
 
 ## MCP surface
 
-### Resource
+Coverage snapshot:
 
-- `tasks://active` – JSON list of active tasks (includes tasks with `status: COMPLETE`)
-- `tasks://defaults` – account-level task defaults (chunk sizes, priority defaults, etc.)
+- `273` typed tools
+- `1` raw fallback tool (`reclaim_call_api`)
+- `6` resources
+- `511` endpoint signatures in the registry (`273` typed, `108` raw, `130` excluded)
 
-### Tools
+Full, generated coverage:
 
-- `reclaim_get_task_defaults`
-- `reclaim_list_tasks`
-- `reclaim_get_task`
-- `reclaim_get_task_min_index`
-- `reclaim_list_recommended_tasks`
-- `reclaim_create_task`
-- `reclaim_update_task`
-- `reclaim_batch_update_tasks`
-- `reclaim_batch_delete_tasks` (destructive bulk action)
-- `reclaim_batch_archive_tasks` (bulk lifecycle mutation)
-- `reclaim_batch_complete_tasks` (bulk lifecycle mutation)
-- `reclaim_reindex_tasks_by_due` (bulk scheduling mutation)
-- `reclaim_reindex_task`
-- `reclaim_plan_work`
-- `reclaim_restart_task`
-- `reclaim_reschedule_task_event`
-- `reclaim_bulk_reschedule_task_events` (bulk scheduling mutation)
-- `reclaim_mark_complete`
-- `reclaim_mark_incomplete`
-- `reclaim_delete_task`
-- `reclaim_add_time`
-- `reclaim_start_timer`
-- `reclaim_stop_timer`
-- `reclaim_log_work`
-- `reclaim_clear_exceptions`
-- `reclaim_prioritize`
+- [CAPABILITY-MATRIX.md](./CAPABILITY-MATRIX.md)
+- [CAPABILITY-MATRIX.json](./CAPABILITY-MATRIX.json)
 
-## Tool semantics (important)
+Typed resources:
 
-### Durations and chunking
+- `tasks://active`
+- `tasks://defaults`
+- `reclaim://users/current`
+- `reclaim://habits/daily`
+- `reclaim://focus/settings/current`
+- `reclaim://team/current`
 
-Reclaim’s API uses **15-minute chunks**.
+## Architecture
 
-To avoid confusion, this server supports minutes-based inputs:
+- `src/server/bootstrap.ts` creates the MCP server and wires domain registrars from `src/server/registrars/*`.
+- `src/client/core/http.ts` provides shared request execution, auth checks, query serialization, and API error normalization.
+- `src/client/domains/*` contains typed domain clients mapped to customer-visible Reclaim surfaces.
+- `src/endpoint-registry.ts` is the canonical API classification source (`typed` / `raw` / `excluded`) with safety flags.
+- `src/tools/rawApi.ts` implements `reclaim_call_api` and enforces raw fallback constraints against the registry.
 
-- `durationMinutes` → converts to Reclaim `timeChunksRequired`
-- `minDurationMinutes` / `maxDurationMinutes` → converts to `minChunkSize` / `maxChunkSize`
-- `lockChunkSizeToDuration: true` → sets min/max chunk size to exactly the requested duration
+## Naming And Safety Model
 
-Example: “60 minutes exactly, no chunking”
+- Tool names follow `reclaim_<action_or_operation>` (for example `reclaim_create_task`, `reclaim_list_smart_meetings`).
+- Every tool registration uses explicit annotations from `src/server/tool-metadata.ts`:
+  - `readOnlyHint`
+  - `idempotentHint`
+  - `destructiveHint`
+- Every endpoint registry entry includes safety flags:
+  - `readOnly`
+  - `destructive`
+  - `bulk`
+  - `highRisk`
+- Excluded endpoints must include `exclusionCategory` and `exclusionReason`; policy categories are enforced in registry tests.
 
-Natural language request example:
+## Raw Fallback Constraints
 
-```text
-reclaim new task for monday 8am do bigTask for theBoss 60 mins exactly no chunk
+`reclaim_call_api` is intentionally restricted. It rejects calls that are not allowlisted raw signatures.
+
+- Path must start with `/`, cannot include host/query/fragment, and cannot contain traversal segments.
+- Method must match one of the registry-allowed methods for the matched endpoint.
+- Typed and excluded endpoints are blocked.
+- Unknown paths are blocked.
+- Query accepts only scalar values or scalar arrays, with key/count/size limits.
+- Body must be JSON-compatible, with depth/node/size limits, and `GET` requests cannot include a body.
+- The result includes endpoint metadata (domain, template, safety flags) and sets a safety notice on destructive operations.
+
+## Normalization Semantics
+
+- Minutes abstraction:
+  - `durationMinutes` -> `timeChunksRequired`
+  - `minDurationMinutes` -> `minChunkSize`
+  - `maxDurationMinutes` -> `maxChunkSize`
+  - `lockChunkSizeToDuration: true` forces min/max chunk sizes to match requested duration
+- Timezone resolution for local datetimes without offset:
+  1. tool `timeZone` / `timezone`
+  2. `MCP_DEFAULT_TIMEZONE`
+  3. Reclaim account timezone from `/users/current`
+  4. server machine timezone
+- Date parsing (`parseDeadline`) supports:
+  - numeric deadline offsets (days from now)
+  - local datetimes with timezone-safe conversion
+  - DST gap handling by choosing the next valid local wall-clock time
+- Query normalization removes `undefined` values and preserves scalar-array semantics.
+- Enum normalization standardizes category/subtype/priority aliases for typed payloads.
+- Errors are normalized into `ReclaimError` (`status`, `detail`) and surfaced through consistent MCP tool/resource wrappers.
+
+## Maintainer Workflow
+
+When adding or changing coverage:
+
+1. Update `src/endpoint-registry.ts` for each new endpoint signature and classify it as `typed`, `raw`, or `excluded` with safety metadata.
+2. If `typed`, add/update domain client + tool/resource registration.
+3. Regenerate matrix artifacts:
+
+```bash
+pnpm docs:matrix
 ```
 
-```json
-{
-  "title": "bigTask for theBoss",
-  "startTime": "2026-01-05T08:00:00",
-  "timeZone": "America/Los_Angeles",
-  "durationMinutes": 60,
-  "lockChunkSizeToDuration": true
-}
+4. Run validation:
+
+```bash
+pnpm test
+pnpm typecheck
+pnpm build
 ```
-
-### Timezones
-
-- If you provide an offset (e.g. `2026-01-05T08:00:00-08:00`), it’s sent as that exact moment.
-- If you omit the offset (e.g. `2026-01-05T08:00:00`), it’s interpreted in a time zone, then converted to UTC for the Reclaim API.
-
-Time zone selection order for offset-less timestamps:
-
-1. tool argument `timeZone` / `timezone`
-2. `MCP_DEFAULT_TIMEZONE`
-3. your Reclaim account time zone (fetched from `/users/current`)
-4. the server machine time zone
 
 ## Known issues (LLM behavior)
 
@@ -245,6 +267,7 @@ This typically means the server exited before it could answer the MCP `initializ
 
 ```bash
 pnpm install --no-frozen-lockfile
+pnpm docs:matrix
 pnpm build
 pnpm test
 pnpm typecheck

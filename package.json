@@ -11,6 +11,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
+    "docs:matrix": "node scripts/generate-capability-matrix.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint --ext .ts src --max-warnings 0 --cache --cache-location node_modules/.cache/eslint/",
