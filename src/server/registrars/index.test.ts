@@ -14,6 +14,7 @@ import { oneOnOneDomainRegistrar } from "./oneOnOnes.js";
 import { schedulingLinkDomainRegistrar } from "./schedulingLinks.js";
 import { smartMeetingDomainRegistrar } from "./smartMeetings.js";
 import { taskDomainRegistrar } from "./tasks.js";
+import { usersAccountsDomainRegistrar } from "./usersAccounts.js";
 
 describe("domain registrars", () => {
   it("registers task domain tools and resources via task registrar", () => {
@@ -90,7 +91,7 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(120);
+    expect(harness.tools.length).toBe(156);
     expect(harness.resources.length).toBe(6);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
@@ -111,6 +112,9 @@ describe("domain registrars", () => {
         "reclaim_list_events",
         "reclaim_get_primary_calendar",
         "reclaim_validate_sync_policy",
+        "reclaim_get_current_user",
+        "reclaim_list_accounts",
+        "reclaim_list_delegated_access",
       ]),
     );
     expect(harness.resources.map((resource) => resource.name)).toEqual(
@@ -133,7 +137,90 @@ describe("domain registrars", () => {
     expect(domains).toContain("smart_1_1s");
     expect(domains).toContain("scheduling_links");
     expect(domains).toContain("events_calendars");
+    expect(domains).toContain("users_accounts");
     expect(domains).toContain("curated_fallback");
+  });
+
+  it("registers users/accounts domain tools via users/accounts registrar", () => {
+    const { harness, server } = createMcpServerHarness();
+
+    usersAccountsDomainRegistrar.register(server);
+
+    expect(new Set(harness.tools.map((tool) => tool.name))).toEqual(
+      new Set([
+        "reclaim_get_current_user",
+        "reclaim_update_current_user",
+        "reclaim_list_current_user_access",
+        "reclaim_get_current_user_access",
+        "reclaim_list_current_user_contacts",
+        "reclaim_invite_current_user_contact",
+        "reclaim_invite_current_user_contact_v2",
+        "reclaim_list_current_user_contacts_v2",
+        "reclaim_list_current_user_contacts_v3",
+        "reclaim_get_current_user_product_usage",
+        "reclaim_get_current_user_time_policies",
+        "reclaim_update_current_user_time_policies",
+        "reclaim_update_current_user_timezone_settings",
+        "reclaim_update_current_user_week_start_settings",
+        "reclaim_update_current_user_format24hour_settings",
+        "reclaim_get_current_user_quest",
+        "reclaim_update_current_user_quest",
+        "reclaim_get_current_user_referrals",
+        "reclaim_reset_current_user",
+        "reclaim_get_current_user_restorable_features",
+        "reclaim_restore_current_user_features",
+        "reclaim_update_current_user_rsvp_settings",
+        "reclaim_list_accounts",
+        "reclaim_list_account_calendars",
+        "reclaim_validate_account",
+        "reclaim_delete_account",
+        "reclaim_list_credentials",
+        "reclaim_get_primary_credential",
+        "reclaim_list_personal_credentials",
+        "reclaim_get_credential",
+        "reclaim_delete_credential",
+        "reclaim_list_delegated_access",
+        "reclaim_create_delegated_access",
+        "reclaim_get_delegated_access_allowed",
+        "reclaim_toggle_delegated_access",
+        "reclaim_delete_delegated_access",
+      ]),
+    );
+
+    const getCurrentUser = findRegisteredTool(
+      harness.tools,
+      "reclaim_get_current_user",
+    );
+    const updateCurrentUser = findRegisteredTool(
+      harness.tools,
+      "reclaim_update_current_user",
+    );
+    const resetCurrentUser = findRegisteredTool(
+      harness.tools,
+      "reclaim_reset_current_user",
+    );
+    const deleteCredential = findRegisteredTool(
+      harness.tools,
+      "reclaim_delete_credential",
+    );
+
+    expectToolAnnotations(getCurrentUser, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(updateCurrentUser, {
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(resetCurrentUser, {
+      idempotentHint: false,
+      destructiveHint: true,
+    });
+    expectToolAnnotations(deleteCredential, {
+      idempotentHint: true,
+      destructiveHint: true,
+    });
   });
 
   it("registers habits domain tools via habits registrar", () => {

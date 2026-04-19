@@ -96,6 +96,21 @@ describe("endpoint registry coverage", () => {
     expect(primaryCalendar?.mode).toBe("typed");
     expect(primaryCalendar?.isExcluded).toBe(false);
 
+    const accounts = getEndpointBySignature("GET", "/accounts");
+    expect(accounts?.mode).toBe("typed");
+    expect(accounts?.isExcluded).toBe(false);
+
+    const currentUserPatch = getEndpointBySignature("PATCH", "/users/current");
+    expect(currentUserPatch?.mode).toBe("typed");
+    expect(currentUserPatch?.isExcluded).toBe(false);
+
+    const userTimePoliciesPatch = getEndpointBySignature(
+      "PATCH",
+      "/users/current/timePolicies",
+    );
+    expect(userTimePoliciesPatch?.mode).toBe("typed");
+    expect(userTimePoliciesPatch?.isExcluded).toBe(false);
+
     const watchSettings = getEndpointBySignature(
       "POST",
       "/calendars/watchSettings",

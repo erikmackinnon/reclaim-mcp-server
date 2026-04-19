@@ -288,6 +288,54 @@ export interface ParticipantResolution {
   [key: string]: any;
 }
 
+export type UserAccountId = number | string;
+
+export interface UserProfile {
+  id?: UserAccountId;
+  email?: string;
+  timezone?: string;
+  firstName?: string;
+  lastName?: string;
+  [key: string]: unknown;
+}
+
+export interface UserAccessRecord {
+  id?: UserAccountId;
+  userId?: UserAccountId;
+  accountId?: UserAccountId;
+  credentialId?: UserAccountId;
+  [key: string]: unknown;
+}
+
+export interface UserContact {
+  id?: UserAccountId;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  [key: string]: unknown;
+}
+
+export interface Account {
+  id?: UserAccountId;
+  type?: string;
+  provider?: string;
+  [key: string]: unknown;
+}
+
+export interface Credential {
+  id?: UserAccountId;
+  accountId?: UserAccountId;
+  provider?: string;
+  [key: string]: unknown;
+}
+
+export interface DelegatedAccess {
+  id?: UserAccountId;
+  email?: string;
+  userId?: UserAccountId;
+  [key: string]: unknown;
+}
+
 /**
  * Custom error class for Reclaim API specific errors.
  * Includes optional status code and detailed error response.
