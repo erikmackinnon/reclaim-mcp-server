@@ -1,3 +1,4 @@
+export * as analyticsChangelogAssistDomainClient from "./analytics-changelog-assist/index.js";
 export * as eventsCalendarsDomainClient from "./events-calendars/index.js";
 export * as focusAvailabilityDomainClient from "./focus-availability/index.js";
 export * as habitsDomainClient from "./habits/index.js";

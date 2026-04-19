@@ -5,6 +5,7 @@ import {
   expectToolAnnotations,
   findRegisteredTool,
 } from "../../test/harness/assertions.js";
+import { analyticsChangelogAssistDomainRegistrar } from "./analyticsChangelogAssist.js";
 import { createMcpServerHarness } from "../../test/harness/mcp-server.js";
 import { DOMAIN_REGISTRARS, registerDomainRegistrars } from "./index.js";
 import { curatedFallbackRegistrar } from "./curatedFallback.js";
@@ -93,7 +94,7 @@ describe("domain registrars", () => {
 
     registerDomainRegistrars(server);
 
-    expect(harness.tools.length).toBe(200);
+    expect(harness.tools.length).toBe(232);
     expect(harness.resources.length).toBe(6);
     expect(new Set(harness.tools.map((tool) => tool.name))).toContain(
       "reclaim_call_api",
@@ -121,6 +122,9 @@ describe("domain registrars", () => {
         "reclaim_get_recommended_schedule_policy",
         "reclaim_get_focus_settings_user",
         "reclaim_get_ideal_time_availability",
+        "reclaim_get_user_analytics",
+        "reclaim_list_changelog",
+        "reclaim_list_interactions",
       ]),
     );
     expect(harness.resources.map((resource) => resource.name)).toEqual(
@@ -146,6 +150,7 @@ describe("domain registrars", () => {
     expect(domains).toContain("users_accounts");
     expect(domains).toContain("time_schemes_time_windows_schedule_policies");
     expect(domains).toContain("focus_availability");
+    expect(domains).toContain("analytics_changelog_assist");
     expect(domains).toContain("curated_fallback");
   });
 
@@ -281,6 +286,95 @@ describe("domain registrars", () => {
     expectToolAnnotations(deleteDailyHabit, {
       idempotentHint: true,
       destructiveHint: true,
+    });
+  });
+
+  it("registers analytics/changelog/assist domain tools via analytics/changelog/assist registrar", () => {
+    const { harness, server } = createMcpServerHarness();
+
+    analyticsChangelogAssistDomainRegistrar.register(server);
+
+    expect(new Set(harness.tools.map((tool) => tool.name))).toEqual(
+      new Set([
+        "reclaim_get_user_analytics",
+        "reclaim_get_user_analytics_v3",
+        "reclaim_get_team_analytics",
+        "reclaim_get_team_analytics_v3",
+        "reclaim_get_team_analytics_v4",
+        "reclaim_get_team_analytics_v4_export",
+        "reclaim_get_team_analytics_v4_filters",
+        "reclaim_get_team_analytics_v4_permissions",
+        "reclaim_get_focus_insights_v3",
+        "reclaim_get_weekly_report_social",
+        "reclaim_list_changelog",
+        "reclaim_list_changelog_events",
+        "reclaim_list_changelog_tasks",
+        "reclaim_list_changelog_smart_habits",
+        "reclaim_list_changelog_smart_meetings",
+        "reclaim_list_changelog_scheduling_links",
+        "reclaim_list_interactions",
+        "reclaim_create_interaction",
+        "reclaim_get_interaction",
+        "reclaim_send_interaction_chat",
+        "reclaim_close_interaction",
+        "reclaim_set_current_interaction",
+        "reclaim_get_current_daily_digest",
+        "reclaim_get_current_proactive_gtd",
+        "reclaim_generate_proactive_gtd",
+        "reclaim_list_interaction_records",
+        "reclaim_get_task_interaction",
+        "reclaim_update_interaction",
+        "reclaim_send_interpreter_message",
+        "reclaim_get_pending_interpreter_plan",
+        "reclaim_get_moment",
+        "reclaim_get_next_moment",
+      ]),
+    );
+
+    const getUserAnalytics = findRegisteredTool(
+      harness.tools,
+      "reclaim_get_user_analytics",
+    );
+    const getTeamAnalyticsV4 = findRegisteredTool(
+      harness.tools,
+      "reclaim_get_team_analytics_v4",
+    );
+    const listChangelog = findRegisteredTool(
+      harness.tools,
+      "reclaim_list_changelog",
+    );
+    const listInteractions = findRegisteredTool(
+      harness.tools,
+      "reclaim_list_interactions",
+    );
+    const createInteraction = findRegisteredTool(
+      harness.tools,
+      "reclaim_create_interaction",
+    );
+
+    expectToolAnnotations(getUserAnalytics, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(getTeamAnalyticsV4, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(listChangelog, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(listInteractions, {
+      readOnlyHint: true,
+      idempotentHint: true,
+      destructiveHint: false,
+    });
+    expectToolAnnotations(createInteraction, {
+      idempotentHint: false,
+      destructiveHint: false,
     });
   });
 

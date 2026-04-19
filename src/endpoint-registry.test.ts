@@ -206,6 +206,52 @@ describe("endpoint registry coverage", () => {
     expect(createDefaultPolicies?.safety.destructive).toBe(false);
   });
 
+  it("classifies analytics/changelog/assist WU-13 surfaces as typed while keeping high-risk assist raw", () => {
+    const userAnalytics = getEndpointBySignature("GET", "/analytics/user");
+    expect(userAnalytics?.mode).toBe("typed");
+
+    const teamAnalyticsV4 = getEndpointBySignature(
+      "POST",
+      "/analytics/team/V4",
+    );
+    expect(teamAnalyticsV4?.mode).toBe("typed");
+    expect(teamAnalyticsV4?.safety.readOnly).toBe(true);
+
+    const focusInsights = getEndpointBySignature(
+      "GET",
+      "/analytics/focus/insights/V3",
+    );
+    expect(focusInsights?.mode).toBe("typed");
+
+    const changelogRoot = getEndpointBySignature("GET", "/changelog");
+    expect(changelogRoot?.mode).toBe("typed");
+
+    const changelogSmartMeetings = getEndpointBySignature(
+      "GET",
+      "/changelog/smart-meetings",
+    );
+    expect(changelogSmartMeetings?.mode).toBe("typed");
+
+    const interactions = getEndpointBySignature("GET", "/interactions");
+    expect(interactions?.mode).toBe("typed");
+
+    const proactiveGtdGenerate = getEndpointBySignature(
+      "POST",
+      "/interactions/proactive-gtd/generate",
+    );
+    expect(proactiveGtdGenerate?.mode).toBe("typed");
+
+    const interpreterMessage = getEndpointBySignature(
+      "POST",
+      "/interpreter/message",
+    );
+    expect(interpreterMessage?.mode).toBe("typed");
+
+    const scoringRescore = getEndpointBySignature("POST", "/scoring/rescore");
+    expect(scoringRescore?.mode).toBe("raw");
+    expect(scoringRescore?.safety.highRisk).toBe(true);
+  });
+
   it("resolves wildcard assist-settings routes without losing explicit debug exclusions", () => {
     const wildcardAssistSettings = matchEndpointRequest(
       "POST",

@@ -1,3 +1,4 @@
+import { analyticsChangelogAssistDomainRegistrar } from "./analyticsChangelogAssist.js";
 import { curatedFallbackRegistrar } from "./curatedFallback.js";
 import { eventsCalendarsDomainRegistrar } from "./eventsCalendars.js";
 import { focusAvailabilityDomainRegistrar } from "./focusAvailability.js";
@@ -22,6 +23,7 @@ export const DOMAIN_REGISTRARS: readonly DomainRegistrar[] = [
   usersAccountsDomainRegistrar,
   timePoliciesDomainRegistrar,
   focusAvailabilityDomainRegistrar,
+  analyticsChangelogAssistDomainRegistrar,
   curatedFallbackRegistrar,
 ];
 

@@ -347,6 +347,25 @@ export interface AvailabilityResult {
   [key: string]: unknown;
 }
 
+export type InsightEntityId = number | string;
+
+export interface AnalyticsSnapshot {
+  id?: InsightEntityId;
+  [key: string]: unknown;
+}
+
+export interface ChangelogEntry {
+  id?: InsightEntityId;
+  entityType?: string;
+  [key: string]: unknown;
+}
+
+export interface AssistInteraction {
+  id?: InsightEntityId;
+  status?: string;
+  [key: string]: unknown;
+}
+
 export type UserAccountId = number | string;
 
 export interface UserProfile {
